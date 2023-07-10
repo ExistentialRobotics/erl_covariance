@@ -6,7 +6,7 @@
     <author email="daizhirui@hotmail.com">Zhirui Dai</author>
     <maintainer email="daizhirui@hotmail.com">Zhirui Dai</maintainer>
     <license>MIT</license>
-    <url type="repository">https://github.com/ExistentialRobotics/erl_common.git</url>
+    <url type="repository">https://github.com/ExistentialRobotics/erl_covariance.git</url>
 
     <buildtool_depend>catkin</buildtool_depend>
 
