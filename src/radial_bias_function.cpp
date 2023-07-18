@@ -40,7 +40,7 @@ namespace erl::covariance {
     Eigen::MatrixXd
     RadialBiasFunction::ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y) const {
         auto n = mat_x.cols();
-        ERL_DEBUG_ASSERT(n == vec_sigma_y.size(), "#elements of vec_sigma_y does not equal to #columns of m_x_.\n");
+        ERL_DEBUG_ASSERT(n == vec_sigma_y.size(), "#elements of vec_sigma_y does not equal to #columns of m_x_.");
         auto a = double(0.5) / (m_setting_->scale * m_setting_->scale);
         Eigen::MatrixXd k_mat(n, n);
 
@@ -61,7 +61,7 @@ namespace erl::covariance {
 
     Eigen::MatrixXd
     RadialBiasFunction::ComputeKtest(const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2) const {
-        ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x_1 and x_2 should have the same dimension.\n");
+        ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x_1 and x_2 should have the same dimension.");
 
         auto n = mat_x1.cols();
         auto m = mat_x2.cols();
