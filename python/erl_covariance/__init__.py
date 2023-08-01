@@ -1,3 +1,7 @@
+# import pybind dependencies
+import erl_common
+
+# import package modules
 from .pyerl_covariance import *
 
 __all__ = [
