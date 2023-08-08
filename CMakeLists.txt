@@ -16,7 +16,7 @@ erl_catkin_package(
         INCLUDE_DIRS include
         LIBRARIES ${PROJECT_NAME} py${PROJECT_NAME}
         CATKIN_DEPENDS ${${PROJECT_NAME}_CATKIN_COMPONENTS}
-        DEPENDS ${${PROJECT_NAME}_DEPENDS})   # dependencies are collected via erl_find_package
+        DEPENDS ${${PROJECT_NAME}_DEPENDS})   # non-catkin dependencies are collected via erl_find_package
 
 #######################################################################################################################
 # BUILD
