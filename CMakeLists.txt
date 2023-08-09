@@ -9,8 +9,9 @@ message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
 if (NOT COMMAND erl_project_setup)
     find_package(erl_common REQUIRED)
 endif ()
-set(${PROJECT_NAME}_CATKIN_COMPONENTS erl_common)
-erl_project_setup()
+erl_project_setup(
+        ERL_PACKAGES erl_common
+)
 erl_setup_ros(CATKIN_COMPONENTS ${${PROJECT_NAME}_CATKIN_COMPONENTS})
 erl_catkin_package(
         INCLUDE_DIRS include
