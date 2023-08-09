@@ -2,19 +2,13 @@
 
 namespace erl::covariance {
     std::shared_ptr<RadialBiasFunction>
-    RadialBiasFunction::Create() {
-        return std::shared_ptr<RadialBiasFunction>(new RadialBiasFunction(std::make_shared<Setting>(Type::kRadialBiasFunction)));
-    }
-
-    std::shared_ptr<RadialBiasFunction>
     RadialBiasFunction::Create(std::shared_ptr<Setting> setting) {
+        if (setting == nullptr) {
+            setting = std::make_shared<RadialBiasFunction::Setting>();
+            setting->type = Type::kRadialBiasFunction;
+        }
         return std::shared_ptr<RadialBiasFunction>(new RadialBiasFunction(std::move(setting)));
     }
-
-//    static inline double
-//    InlineRbf(double a, double squared_norm) {
-//        return std::exp(-a * squared_norm);
-//    }
 
     Eigen::MatrixXd
     RadialBiasFunction::ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const {

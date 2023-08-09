@@ -2,12 +2,11 @@
 
 namespace erl::covariance {
     std::shared_ptr<Matern32>
-    Matern32::Create() {
-        return std::shared_ptr<Matern32>(new Matern32(std::make_shared<Setting>(Type::kMatern32)));
-    }
-
-    std::shared_ptr<Matern32>
     Matern32::Create(std::shared_ptr<Setting> setting) {
+        if (setting == nullptr) {
+            setting = std::make_shared<Matern32::Setting>();
+            setting->type = Type::kMatern32;
+        }
         return std::shared_ptr<Matern32>(new Matern32(std::move(setting)));
     }
 

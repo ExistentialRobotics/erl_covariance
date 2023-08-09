@@ -2,12 +2,11 @@
 
 namespace erl::covariance {
     std::shared_ptr<RationalQuadratic>
-    RationalQuadratic::Create() {
-        return std::shared_ptr<RationalQuadratic>(new RationalQuadratic(std::make_shared<Setting>(Type::kRationalQuadratic)));
-    }
-
-    std::shared_ptr<RationalQuadratic>
     RationalQuadratic::Create(std::shared_ptr<Setting> setting) {
+        if (setting == nullptr) {
+            setting = std::make_shared<RationalQuadratic::Setting>();
+            setting->type = Type::kRationalQuadratic;
+        }
         return std::shared_ptr<RationalQuadratic>(new RationalQuadratic(std::move(setting)));
     }
 

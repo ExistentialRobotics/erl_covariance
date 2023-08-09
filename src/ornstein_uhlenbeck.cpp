@@ -2,12 +2,11 @@
 
 namespace erl::covariance {
     std::shared_ptr<OrnsteinUhlenbeck>
-    OrnsteinUhlenbeck::Create() {
-        return std::shared_ptr<OrnsteinUhlenbeck>(new OrnsteinUhlenbeck(std::make_shared<Setting>(Type::kOrnsteinUhlenbeck)));
-    }
-
-    std::shared_ptr<OrnsteinUhlenbeck>
     OrnsteinUhlenbeck::Create(std::shared_ptr<Setting> setting) {
+        if (setting == nullptr) {
+            setting = std::make_shared<OrnsteinUhlenbeck::Setting>();
+            setting->type = Type::kOrnsteinUhlenbeck;
+        }
         return std::shared_ptr<OrnsteinUhlenbeck>(new OrnsteinUhlenbeck(std::move(setting)));
     }
 

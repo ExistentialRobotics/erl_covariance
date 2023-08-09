@@ -10,12 +10,11 @@ InlineExpr(const double &a, const Eigen::VectorXd &weights, const Eigen::Ref<con
 
 namespace erl::covariance {
     std::shared_ptr<CustomKernelV4>
-    CustomKernelV4::Create() {
-        return std::shared_ptr<CustomKernelV4>(new CustomKernelV4(std::make_shared<Setting>(Type::kCustomKernelV4)));
-    }
-
-    std::shared_ptr<CustomKernelV4>
     CustomKernelV4::Create(std::shared_ptr<Setting> setting) {
+        if (setting == nullptr) {
+            setting = std::make_shared<CustomKernelV4::Setting>();
+            setting->type = Type::kCustomKernelV4;
+        }
         return std::shared_ptr<CustomKernelV4>(new CustomKernelV4(std::move(setting)));
     }
 

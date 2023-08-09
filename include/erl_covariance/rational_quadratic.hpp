@@ -7,10 +7,7 @@ namespace erl::covariance {
         // ref: https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RationalQuadratic.html
     public:
         static std::shared_ptr<RationalQuadratic>
-        Create();
-
-        static std::shared_ptr<RationalQuadratic>
-        Create(std::shared_ptr<Setting> setting);
+        Create(std::shared_ptr<Setting> setting = nullptr);
 
         [[nodiscard]] Eigen::MatrixXd
         ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final;

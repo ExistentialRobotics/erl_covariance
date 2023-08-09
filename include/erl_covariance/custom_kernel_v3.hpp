@@ -10,10 +10,7 @@ namespace erl::covariance {
 
     public:
         static std::shared_ptr<CustomKernelV3>
-        Create();
-
-        static std::shared_ptr<CustomKernelV3>
-        Create(std::shared_ptr<Setting> setting);
+        Create(std::shared_ptr<Setting> setting = nullptr);
 
         [[nodiscard]] Eigen::MatrixXd
         ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final;
