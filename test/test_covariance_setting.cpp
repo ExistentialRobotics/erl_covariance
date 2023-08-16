@@ -16,7 +16,7 @@ TEST(CovarianceSettingTest, FromYamlString) {
     ASSERT_EQ(setting.weights.size(), 2);
     erl::common::GtestAssertSequenceEqual(setting.weights, Eigen::Vector2d{1., 2.});
 
-    std::cout << setting.AsYamlString() << std::endl;
+    std::cout << *setting << std::endl;
 
     setting.FromYamlString(R"(
 type: kMatern32
@@ -27,7 +27,7 @@ scale_mix: 0.5
 weights: [1.0, 2.0, 3.0, 4.0]
 )");
 
-    std::cout << setting.AsYamlString() << std::endl;
+    std::cout << *setting << std::endl;
     ASSERT_EQ(setting.type, Covariance::Type::kMatern32);
     ASSERT_EQ(setting.alpha, 2.);
     ASSERT_EQ(setting.scale, 3.);
