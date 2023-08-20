@@ -19,11 +19,41 @@ namespace erl::covariance {
             case Type::kOrnsteinUhlenbeck:
                 return OrnsteinUhlenbeck::Create(std::static_pointer_cast<OrnsteinUhlenbeck::Setting>(setting));
             case Type::kMatern32:
-                return Matern32::Create(std::static_pointer_cast<Matern32::Setting>(setting));
+                if (setting->x_dim == 1) {
+                    return Matern32<1>::Create(std::static_pointer_cast<Matern32<1>::Setting>(setting));
+                } else if (setting->x_dim == 2) {
+                    return Matern32<2>::Create(std::static_pointer_cast<Matern32<2>::Setting>(setting));
+                } else if (setting->x_dim == 3) {
+                    return Matern32<3>::Create(std::static_pointer_cast<Matern32<3>::Setting>(setting));
+                } else if (setting->x_dim == 4) {
+                    return Matern32<4>::Create(std::static_pointer_cast<Matern32<4>::Setting>(setting));
+                } else {
+                    return Matern32<Eigen::Dynamic>::Create(std::static_pointer_cast<Matern32<Eigen::Dynamic>::Setting>(setting));
+                }
             case Type::kRadialBiasFunction:
-                return RadialBiasFunction::Create(std::static_pointer_cast<RadialBiasFunction::Setting>(setting));
+                if (setting->x_dim == 1) {
+                    return RadialBiasFunction<1>::Create(std::static_pointer_cast<RadialBiasFunction<1>::Setting>(setting));
+                } else if (setting->x_dim == 2) {
+                    return RadialBiasFunction<2>::Create(std::static_pointer_cast<RadialBiasFunction<2>::Setting>(setting));
+                } else if (setting->x_dim == 3) {
+                    return RadialBiasFunction<3>::Create(std::static_pointer_cast<RadialBiasFunction<3>::Setting>(setting));
+                } else if (setting->x_dim == 4) {
+                    return RadialBiasFunction<4>::Create(std::static_pointer_cast<RadialBiasFunction<4>::Setting>(setting));
+                } else {
+                    return RadialBiasFunction<Eigen::Dynamic>::Create(std::static_pointer_cast<RadialBiasFunction<Eigen::Dynamic>::Setting>(setting));
+                }
             case Type::kRationalQuadratic:
-                return RationalQuadratic::Create(std::static_pointer_cast<RationalQuadratic::Setting>(setting));
+                if (setting->x_dim == 1) {
+                    return RationalQuadratic<1>::Create(std::static_pointer_cast<RationalQuadratic<1>::Setting>(setting));
+                } else if (setting->x_dim == 2) {
+                    return RationalQuadratic<2>::Create(std::static_pointer_cast<RationalQuadratic<2>::Setting>(setting));
+                } else if (setting->x_dim == 3) {
+                    return RationalQuadratic<3>::Create(std::static_pointer_cast<RationalQuadratic<3>::Setting>(setting));
+                } else if (setting->x_dim == 4) {
+                    return RationalQuadratic<4>::Create(std::static_pointer_cast<RationalQuadratic<4>::Setting>(setting));
+                } else {
+                    return RationalQuadratic<Eigen::Dynamic>::Create(std::static_pointer_cast<RationalQuadratic<Eigen::Dynamic>::Setting>(setting));
+                }
             case Type::kCustomKernelV1:
                 return CustomKernelV1::Create(std::static_pointer_cast<CustomKernelV1::Setting>(setting));
             case Type::kCustomKernelV2:

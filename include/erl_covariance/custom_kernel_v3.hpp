@@ -12,28 +12,35 @@ namespace erl::covariance {
         static std::shared_ptr<CustomKernelV3>
         Create(std::shared_ptr<Setting> setting = nullptr);
 
-        [[nodiscard]] Eigen::MatrixXd
-        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final;
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final;
 
-        [[nodiscard]] Eigen::MatrixXd
-        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y) const final;
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y)
+            const final;
 
-        [[nodiscard]] Eigen::MatrixXd
-        ComputeKtest(const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2) const final;
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtest(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2)
+            const final;
 
-        [[nodiscard]] Eigen::MatrixXd
-        ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags) const final;
-
-        [[nodiscard]] Eigen::MatrixXd
+        [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
+            Eigen::Ref<Eigen::MatrixXd> k_mat,
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
+            const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags) const final;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtrainWithGradient(
+            Eigen::Ref<Eigen::MatrixXd> k_mat,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
             const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags,
             const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_x,
             const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y,
             const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_grad) const final;
 
-        [[nodiscard]] Eigen::MatrixXd
+        [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(
+            Eigen::Ref<Eigen::MatrixXd> k_mat,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
             const Eigen::Ref<const Eigen::VectorXb> &vec_grad1_flags,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2) const final;
