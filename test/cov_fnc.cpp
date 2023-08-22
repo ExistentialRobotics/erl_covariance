@@ -28,7 +28,7 @@ using namespace Eigen;
 // inline functions for Matern32SparseDeriv1
 inline double
 kf(double r, double a) {
-    return (1.0f + a * r) * std::exp(-a * r);
+    return (1. + a * r) * std::exp(-a * r);
 }
 
 inline double
@@ -112,13 +112,13 @@ EMatrixX
 OrnsteinUhlenbeck(EMatrixX const &x1, EMatrixX const &x2, double scale_param) {
     auto n = x1.cols();
     auto m = x2.cols();
-    auto a = double(-1.) / scale_param;
+    auto a = -1. / scale_param;
     EMatrixX K = EMatrixX::Zero(n, m);
 
     for (int k = 0; k < n; k++) {
         for (int j = 0; j < m; j++) {
             double r = (x1.col(k) - x2.col(j)).norm();
-            K(k, j) = 1.f * std::exp(a * r);
+            K(k, j) = 1. * std::exp(a * r);
         }
     }
 
@@ -344,17 +344,17 @@ matern32_sparse_deriv1_2D(
 {
     auto dim = x1.rows();
     auto n = x1.cols();
-    double sqr3L = std::sqrt(double(3.)) / scale_param;
+    double sqr3L = std::sqrt(3.) / scale_param;
     double sqr3L2 = sqr3L * sqr3L;
     EMatrixX K;
     // label m_gradflag_=1 by numbers from 0, otherwise -1
     int ng = 0;  // # of m_gradflag_=1
     for (double &flag: gradflag) {
-        if (flag > double(0.5)) {
-            flag = double(ng);
+        if (flag > 0.5) {
+            flag = ng;
             ng++;
         } else {
-            flag = double(-1.0);
+            flag = -1.0;
         }
     }
 
@@ -369,22 +369,25 @@ matern32_sparse_deriv1_2D(
                 // FIXME: sigma of output m_noise_ should also be included
                 // m_k_(k,k) = 1.0 + m_sigx_(k);
                 K(k, k) = 1. + sigx(k) + sigy;  // FIXED
-                if (gradflag[k] > double(-0.5)) {
-                    K(k, kind1) = double(0.0);
-                    K(kind1, k) = double(0.0);
-                    K(k, kind2) = double(0.0);
-                    K(kind2, k) = double(0.0);
+                if (gradflag[k] > -0.5) {
+                    K(k, kind1) = 0.0;
+                    K(kind1, k) = 0.0;
+                    K(k, kind2) = 0.0;
+                    K(kind2, k) = 0.0;
                     K(kind1, kind1) = sqr3L2 + siggrad(k);  // FIXED
-                    K(kind1, kind2) = double(0.0);
-                    K(kind2, kind1) = double(0.0);
+                    K(kind1, kind2) = 0.;
+                    K(kind2, kind1) = 0.;
                     K(kind2, kind2) = sqr3L2 + siggrad(k);
                 }
             } else {
                 // variance between mPosition of point k and mPosition of point j
-                double r = (x1.col(k) - x1.col(j)).norm();
+                // double r = (x1.col(k) - x1.col(j)).norm();
+                double dx = x1(0, k) - x1(0, j);
+                double dy = x1(1, k) - x1(1, j);
+                double r = std::sqrt(dx * dx + dy * dy);
                 K(k, j) = kf(r, sqr3L);
                 K(j, k) = K(k, j);
-                if (gradflag[k] > double(-1.)) {
+                if (gradflag[k] > -1.) {
                     // check papers:
                     // Gaussian Process training with input m_noise_
                     // Derivative Observations in Gaussian Process Models of Dynamics Systems, etc.

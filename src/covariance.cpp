@@ -17,7 +17,17 @@ namespace erl::covariance {
         ERL_DEBUG_ASSERT(setting != nullptr, "setting should not be nullptr");
         switch (setting->type) {
             case Type::kOrnsteinUhlenbeck:
-                return OrnsteinUhlenbeck::Create(std::static_pointer_cast<OrnsteinUhlenbeck::Setting>(setting));
+                if (setting->x_dim == 1) {
+                    return OrnsteinUhlenbeck<1>::Create(std::static_pointer_cast<OrnsteinUhlenbeck<1>::Setting>(setting));
+                } else if (setting->x_dim == 2) {
+                    return OrnsteinUhlenbeck<2>::Create(std::static_pointer_cast<OrnsteinUhlenbeck<2>::Setting>(setting));
+                } else if (setting->x_dim == 3) {
+                    return OrnsteinUhlenbeck<3>::Create(std::static_pointer_cast<OrnsteinUhlenbeck<3>::Setting>(setting));
+                } else if (setting->x_dim == 4) {
+                    return OrnsteinUhlenbeck<4>::Create(std::static_pointer_cast<OrnsteinUhlenbeck<4>::Setting>(setting));
+                } else {
+                    return OrnsteinUhlenbeck<Eigen::Dynamic>::Create(std::static_pointer_cast<OrnsteinUhlenbeck<Eigen::Dynamic>::Setting>(setting));
+                }
             case Type::kMatern32:
                 if (setting->x_dim == 1) {
                     return Matern32<1>::Create(std::static_pointer_cast<Matern32<1>::Setting>(setting));

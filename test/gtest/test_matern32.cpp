@@ -61,7 +61,7 @@ public:
     }
 };
 
-TEST(Matern32Test, ComputeKtrainWithGradient) {
+TEST(ERL_COVARIANCE, Matern32_2D_ComputeKtrainWithGradient) {
     const auto &kConfig = TestEnvironment::GetConfig();
     auto matern_32 = covariance::Matern32<2>::Create(kConfig.matern_32_setting);
 
@@ -73,13 +73,14 @@ TEST(Matern32Test, ComputeKtrainWithGradient) {
     common::ReportTime<std::chrono::microseconds>("ans", 10, false, [&]() {
         (void) matern_32->ComputeKtrainWithGradient(ans, kConfig.mat_x_1, kConfig.grad_flag_1, kConfig.vec_sigma_x, kConfig.sigma_y, kConfig.sigma_grad);
     });
-
-    EXPECT_EQ(ans.rows(), gt.rows());
-    EXPECT_EQ(ans.cols(), gt.cols());
-    EXPECT_TRUE(ans.isApprox(gt, 1e-10));
+#ifdef NDEBUG
+    ASSERT_EIGEN_MATRIX_NEAR("ComputeKtrainWithGradient", ans, gt, 1.e-15);
+#else
+    ASSERT_EIGEN_MATRIX_EQUAL("ComputeKtrainWithGradient", ans, gt);
+#endif
 }
 
-TEST(Matern32Test, ComputeKtestWithGradient) {
+TEST(ERL_COVARIANCE, Matern32_2D_ComputeKtestWithGradient) {
     const auto &kConfig = TestEnvironment::GetConfig();
     auto matern_32 = covariance::Matern32<2>::Create(kConfig.matern_32_setting);
 
@@ -91,7 +92,9 @@ TEST(Matern32Test, ComputeKtestWithGradient) {
     common::ReportTime<std::chrono::microseconds>("ans", 10, false, [&]() {
         (void) matern_32->ComputeKtestWithGradient(ans, kConfig.mat_x_1, kConfig.grad_flag_1, kConfig.mat_x_2);
     });
-    EXPECT_EQ(ans.rows(), gt.rows());
-    EXPECT_EQ(ans.cols(), gt.cols());
-    EXPECT_TRUE(ans.isApprox(gt, 1e-10));
+#ifdef NDEBUG
+    ASSERT_EIGEN_MATRIX_NEAR("ComputeKtestWithGradient", ans, gt, 1.e-15);
+#else
+    ASSERT_EIGEN_MATRIX_EQUAL("ComputeKtestWithGradient", ans, gt);
+#endif
 }

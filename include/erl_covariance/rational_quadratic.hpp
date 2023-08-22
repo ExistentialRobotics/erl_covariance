@@ -26,14 +26,24 @@ namespace erl::covariance {
             long n = mat_x.cols();
             ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
             ERL_ASSERTM(k_mat.cols() >= n, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n);
-
+            long dim;
+            if constexpr (Dim == Eigen::Dynamic) {
+                dim = mat_x.rows();
+            } else {
+                dim = Dim;
+            }
             double a = double(0.5) / (m_setting_->scale * m_setting_->scale * m_setting_->scale_mix);
             for (long i = 0; i < n; ++i) {
                 for (long j = i; j < n; ++j) {
                     if (i == j) {
                         k_mat(i, i) = m_setting_->alpha;
                     } else {
-                        k_mat(i, j) = m_setting_->alpha * InlineRq(a, m_setting_->scale_mix, (mat_x.col(i) - mat_x.col(j)).squaredNorm());
+                        double r = 0;  // (mat_x.col(i) - mat_x.col(j)).squaredNorm();
+                        for (long k = 0; k < dim; ++k) {
+                            double dx = mat_x(k, i) - mat_x(k, j);
+                            r += dx * dx;
+                        }
+                        k_mat(i, j) = m_setting_->alpha * InlineRq(a, m_setting_->scale_mix, r);
                         k_mat(j, i) = k_mat(i, j);
                     }
                 }
@@ -42,20 +52,30 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y)
+        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_var_y)
             const final {
             long n = mat_x.cols();
             ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
             ERL_ASSERTM(k_mat.cols() >= n, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n);
-            ERL_ASSERTM(n == vec_sigma_y.size(), "#elements of vec_sigma_y does not equal to #columns of m_x_.");
-
+            ERL_ASSERTM(n == vec_var_y.size(), "#elements of vec_sigma_y does not equal to #columns of m_x_.");
+            long dim;
+            if constexpr (Dim == Eigen::Dynamic) {
+                dim = mat_x.rows();
+            } else {
+                dim = Dim;
+            }
             double a = double(0.5) / (m_setting_->scale * m_setting_->scale * m_setting_->scale_mix);
             for (long i = 0; i < n; ++i) {
                 for (long j = i; j < n; ++j) {
                     if (i == j) {
-                        k_mat(i, i) = m_setting_->alpha + vec_sigma_y[i];
+                        k_mat(i, i) = m_setting_->alpha + vec_var_y[i];
                     } else {
-                        k_mat(i, j) = m_setting_->alpha * InlineRq(a, m_setting_->scale_mix, (mat_x.col(i) - mat_x.col(j)).squaredNorm());
+                        double r = 0;  // (mat_x.col(i) - mat_x.col(j)).squaredNorm();
+                        for (long k = 0; k < dim; ++k) {
+                            double dx = mat_x(k, i) - mat_x(k, j);
+                            r += dx * dx;
+                        }
+                        k_mat(i, j) = m_setting_->alpha * InlineRq(a, m_setting_->scale_mix, r);
                         k_mat(j, i) = k_mat(i, j);
                     }
                 }
@@ -75,7 +95,12 @@ namespace erl::covariance {
             double a = double(0.5) / (m_setting_->scale * m_setting_->scale * m_setting_->scale_mix);
             for (long i = 0; i < n; ++i) {
                 for (long j = 0; j < m; ++j) {
-                    k_mat(i, j) = m_setting_->alpha * InlineRq(a, m_setting_->scale_mix, (mat_x1.col(i) - mat_x2.col(j)).squaredNorm());
+                    double r = 0;  // (mat_x1.col(i) - mat_x2.col(j)).squaredNorm();
+                    for (long k = 0; k < mat_x1.rows(); ++k) {
+                        double dx = mat_x1(k, i) - mat_x2(k, j);
+                        r += dx * dx;
+                    }
+                    k_mat(i, j) = m_setting_->alpha * InlineRq(a, m_setting_->scale_mix, r);
                 }
             }
             return {n, m};
@@ -122,11 +147,19 @@ namespace erl::covariance {
                         // cov(f_i, df_i) and cov(df_i, f_i) are zeros
                         k_mat(i, ki) = 0.;
                         k_mat(ki, i) = 0.;
+                        for (long l = k + 1, li = ki + n_grad; l < dim; ++l, li += n_grad) {
+                            k_mat(ki, li) = 0.;  // cov(df_i/dx_k, df_i/dx_l)
+                            k_mat(li, ki) = 0.;  // cov(df_i/dx_l, df_i/dx_k)
+                        }
                     }
                 }
 
                 for (long j = i + 1; j < n; ++j) {
-                    double r2 = (mat_x.col(i) - mat_x.col(j)).squaredNorm();
+                    double r2 = 0;  // (mat_x.col(i) - mat_x.col(j)).squaredNorm()
+                    for (long k = 0; k < dim; ++k) {
+                        double dx = mat_x(k, i) - mat_x(k, j);
+                        r2 += dx * dx;
+                    }
                     double beta = 1. / (1. + a * r2);
                     double gamma = beta * beta * l2_inv * (1. + m_setting_->scale_mix) / m_setting_->scale_mix;
 
@@ -179,9 +212,9 @@ namespace erl::covariance {
             Eigen::Ref<Eigen::MatrixXd> k_mat,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
             const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_x,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_grad) const final {
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_x,
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad) const final {
 
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
@@ -210,19 +243,27 @@ namespace erl::covariance {
             double l2_inv = 1. / (m_setting_->scale * m_setting_->scale);
             double a = 0.5 * l2_inv / m_setting_->scale_mix;
             for (long i = 0; i < n; ++i) {
-                k_mat(i, i) = m_setting_->alpha + vec_sigma_x(i) + vec_sigma_y(i);  // cov(f_i, f_i)
+                k_mat(i, i) = m_setting_->alpha + vec_var_x(i) + vec_var_y(i);  // cov(f_i, f_i)
                 if (vec_grad_flags[i]) {
                     for (long k = 0, ki = grad_indices[i]; k < dim; ++k, ki += n_grad) {
                         // cov(df_i, df_i)
-                        k_mat(ki, ki) = l2_inv + vec_sigma_grad(i);
+                        k_mat(ki, ki) = l2_inv + vec_var_grad(i);
                         // cov(f_i, df_i) and cov(df_i, f_i) are zeros
                         k_mat(i, ki) = 0.;
                         k_mat(ki, i) = 0.;
+                        for (long l = k + 1, li = ki + n_grad; l < dim; ++l, li += n_grad) {
+                            k_mat(ki, li) = 0.;  // cov(df_i/dx_k, df_i/dx_l)
+                            k_mat(li, ki) = 0.;  // cov(df_i/dx_l, df_i/dx_k)
+                        }
                     }
                 }
 
                 for (long j = i + 1; j < n; ++j) {
-                    double r2 = (mat_x.col(i) - mat_x.col(j)).squaredNorm();
+                    double r2 = 0;  // (mat_x.col(i) - mat_x.col(j)).squaredNorm()
+                    for (long k = 0; k < dim; ++k) {
+                        double dx = mat_x(k, i) - mat_x(k, j);
+                        r2 += dx * dx;
+                    }
                     double beta = 1. / (1. + a * r2);
                     double gamma = beta * beta * l2_inv * (1. + m_setting_->scale_mix) / m_setting_->scale_mix;
 

@@ -2,10 +2,12 @@
 
 static inline double
 InlineExpr(const double &a, const Eigen::VectorXd &weights, const Eigen::Ref<const Eigen::Vector3d> &x_1, const Eigen::Ref<const Eigen::Vector3d> &x_2) {
-    Eigen::Vector3d diff = x_1 - x_2;
-    diff.z() = std::abs(diff.z());
-    diff.z() = std::min(diff.z(), 2 * M_PI - diff.z());
-    return std::exp(-a * std::sqrt((weights.array() * diff.array().square()).sum()));
+    double d0 = x_1[0] - x_2[0];
+    double d1 = x_1[1] - x_2[1];
+    double d2 = x_1[2] - x_2[2];
+    d2 = std::abs(d2);
+    d2 = std::min(d2, 2 * M_PI - d2);
+    return std::exp(-a * std::sqrt(weights[0] * d0 * d0 + weights[1] * d1 * d1 + weights[2] * d2 * d2));
 }
 
 namespace erl::covariance {
@@ -44,19 +46,19 @@ namespace erl::covariance {
     CustomKernelV4::ComputeKtrain(
         Eigen::Ref<Eigen::MatrixXd> k_mat,
         const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-        const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y) const {
+        const Eigen::Ref<const Eigen::VectorXd> &vec_var_y) const {
         ERL_ASSERTM(mat_x.rows() == 3, "Each column of mat_x should be 3D vector [m_x_, m_y_, angle].");
         ERL_ASSERTM(m_setting_->weights.size() == 3, "Number of weights should be 3. Set GetSetting()->weights at first.");
         long n = mat_x.cols();
         ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
         ERL_ASSERTM(k_mat.cols() >= n, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n);
-        ERL_ASSERTM(n == vec_sigma_y.size(), "#elements of vec_sigma_y does not equal to #columns of mat_x.");
+        ERL_ASSERTM(n == vec_var_y.size(), "#elements of vec_sigma_y does not equal to #columns of mat_x.");
 
         double a = 1. / m_setting_->scale;
         for (long i = 0; i < n; ++i) {
             for (long j = i; j < n; ++j) {
                 if (i == j) {
-                    k_mat(i, i) = m_setting_->alpha + vec_sigma_y[i];
+                    k_mat(i, i) = m_setting_->alpha + vec_var_y[i];
                 } else {
                     k_mat(i, j) = m_setting_->alpha * InlineExpr(a, m_setting_->weights, mat_x.col(i), mat_x.col(j));
                     k_mat(j, i) = k_mat(i, j);

@@ -30,7 +30,7 @@ namespace erl::covariance {
         // structure for holding the parameters
         struct Setting : public common::Yamlable<Setting> {
             Type type = Type::kUnknown;
-            int x_dim = 2;              // dimension of input space
+            long x_dim = 2;           // dimension of input space
             double alpha = 1.;        // overall covariance magnitude
             double scale = 1.;        // m_scale_ length
             double scale_mix = 1.;    // used by RationalQuadratic, decreasing this value allows more local variations, inf --> Gaussian kernel
@@ -95,7 +95,7 @@ namespace erl::covariance {
         ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y)
+        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_var_y)
             const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
@@ -113,9 +113,9 @@ namespace erl::covariance {
             Eigen::Ref<Eigen::MatrixXd> k_mat,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
             const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_x,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_y,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_sigma_grad) const = 0;
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_x,
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad) const = 0;
 
         /**
          * @brief compute kernel matrix between train samples and test queries with gradient.
