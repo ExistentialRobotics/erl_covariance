@@ -15,7 +15,10 @@ TEST(CovarianceSettingTest, FromYamlString) {
     ASSERT_EQ(setting.scale, 1.);
     ASSERT_EQ(setting.scale_mix, 1.);
     ASSERT_EQ(setting.weights.size(), 2);
-    erl::common::GtestAssertSequenceEqual(setting.weights, Eigen::Vector2d{1., 2.});
+    {
+        Eigen::Vector2d gt_weights{1., 2.};
+        ASSERT_EIGEN_VECTOR_EQUAL("weights", setting.weights, gt_weights);
+    }
 
     std::cout << setting << std::endl;
 
@@ -36,5 +39,8 @@ weights: [1.0, 2.0, 3.0, 4.0]
     ASSERT_EQ(setting.scale, 3.);
     ASSERT_EQ(setting.scale_mix, 0.5);
     ASSERT_EQ(setting.weights.size(), 4);
-    erl::common::GtestAssertSequenceEqual(setting.weights, Eigen::Vector4d{1., 2., 3., 4.});
+    {
+        Eigen::Vector4d gt_weights{1., 2., 3., 4.};
+        ASSERT_EIGEN_VECTOR_EQUAL("weights", setting.weights, gt_weights);
+    }
 }
