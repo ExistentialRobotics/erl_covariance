@@ -134,8 +134,14 @@ BindCovariance(py::module &m) {
             py::arg("vec_grad1_flags"),
             py::arg("mat_x2"));
 
-    py::class_<OrnsteinUhlenbeck, Covariance, std::shared_ptr<OrnsteinUhlenbeck>>(m, ERL_AS_STRING(OrnsteinUhlenbeck))
-        .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&OrnsteinUhlenbeck::Create)), py::arg("setting") = nullptr);
+    py::class_<OrnsteinUhlenbeck<1>, Covariance, std::shared_ptr<OrnsteinUhlenbeck<1>>>(m, "OrnsteinUhlenbeck_1D")
+        .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&OrnsteinUhlenbeck<1>::Create)), py::arg("setting") = nullptr);
+    py::class_<OrnsteinUhlenbeck<2>, Covariance, std::shared_ptr<OrnsteinUhlenbeck<2>>>(m, "OrnsteinUhlenbeck_2D")
+        .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&OrnsteinUhlenbeck<2>::Create)), py::arg("setting") = nullptr);
+    py::class_<OrnsteinUhlenbeck<3>, Covariance, std::shared_ptr<OrnsteinUhlenbeck<3>>>(m, "OrnsteinUhlenbeck_3D")
+        .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&OrnsteinUhlenbeck<3>::Create)), py::arg("setting") = nullptr);
+    py::class_<OrnsteinUhlenbeck<Eigen::Dynamic>, Covariance, std::shared_ptr<OrnsteinUhlenbeck<Eigen::Dynamic>>>(m, "OrnsteinUhlenbeck_xD")
+        .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&OrnsteinUhlenbeck<Eigen::Dynamic>::Create)), py::arg("setting") = nullptr);
 
     py::class_<Matern32<1>, Covariance, std::shared_ptr<Matern32<1>>>(m, "Matern32_1D")
         .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&Matern32<1>::Create)), py::arg("setting") = nullptr);
@@ -144,8 +150,8 @@ BindCovariance(py::module &m) {
     py::class_<Matern32<3>, Covariance, std::shared_ptr<Matern32<3>>>(m, "Matern32_3D")
         .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&Matern32<3>::Create)), py::arg("setting") = nullptr);
     py::class_<Matern32<Eigen::Dynamic>, Covariance, std::shared_ptr<Matern32<Eigen::Dynamic>>>(m, "Matern32_xD")
-
         .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&Matern32<Eigen::Dynamic>::Create)), py::arg("setting") = nullptr);
+
     py::class_<RadialBiasFunction<1>, Covariance, std::shared_ptr<RadialBiasFunction<1>>>(m, "RadialBiasFunction_1D")
         .def(py::init(py::overload_cast<std::shared_ptr<Covariance::Setting>>(&RadialBiasFunction<1>::Create)), py::arg("setting") = nullptr);
     py::class_<RadialBiasFunction<2>, Covariance, std::shared_ptr<RadialBiasFunction<2>>>(m, "RadialBiasFunction_2D")
