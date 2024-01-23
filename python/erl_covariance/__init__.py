@@ -1,10 +1,11 @@
 # import pybind dependencies
-from erl_common.yaml import YamlableBase
+import erl_common as common
 
 # import package modules
-from erl_covariance.pyerl_covariance import *
+from .pyerl_covariance import *
 
 __all__ = [
+    "common",
     "Covariance",
     "OrnsteinUhlenbeck_1D",
     "OrnsteinUhlenbeck_2D",

@@ -48,7 +48,7 @@ public:
 };
 
 // verify that my implementation is consistent with GPisMap's
-TEST(ERL_COVARIANCE, OrnsteinUhlenbeck_ComputeKtrain) {
+TEST(OrnsteinUhlenbeck, ComputeKtrain) {
     const auto &kConfig = TestEnvironment::GetConfig();
     auto ornstein_uhlenbeck = covariance::OrnsteinUhlenbeck<2>::Create(kConfig.ou_setting);
 
@@ -71,7 +71,7 @@ TEST(ERL_COVARIANCE, OrnsteinUhlenbeck_ComputeKtrain) {
     ASSERT_EIGEN_MATRIX_EQUAL("ComputeKtrain2", ans, gt);
 }
 
-TEST(ERL_COVARIANCE, OrnsteinUhlenbeck_ComputeKtest) {
+TEST(OrnsteinUhlenbeck, ComputeKtest) {
     const auto &kConfig = TestEnvironment::GetConfig();
     auto ornstein_uhlenbeck = covariance::OrnsteinUhlenbeck<2>::Create(kConfig.ou_setting);
 

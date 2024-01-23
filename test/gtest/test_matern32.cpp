@@ -61,7 +61,7 @@ public:
     }
 };
 
-TEST(ERL_COVARIANCE, Matern32_2D_ComputeKtrainWithGradient) {
+TEST(Matern32_2D, ComputeKtrainWithGradient) {
     const auto &kConfig = TestEnvironment::GetConfig();
     auto matern_32 = covariance::Matern32<2>::Create(kConfig.matern_32_setting);
 
@@ -80,7 +80,7 @@ TEST(ERL_COVARIANCE, Matern32_2D_ComputeKtrainWithGradient) {
 #endif
 }
 
-TEST(ERL_COVARIANCE, Matern32_2D_ComputeKtestWithGradient) {
+TEST(Matern32_2D, ComputeKtestWithGradient) {
     const auto &kConfig = TestEnvironment::GetConfig();
     auto matern_32 = covariance::Matern32<2>::Create(kConfig.matern_32_setting);
 
