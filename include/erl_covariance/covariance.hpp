@@ -160,12 +160,6 @@ namespace YAML {
         }
     };
 
-    inline Emitter &
-    operator<<(Emitter &out, const erl::covariance::Covariance::Type &type) {
-        out << erl::covariance::Covariance::GetTypeName(type);
-        return out;
-    }
-
     template<>
     struct convert<erl::covariance::Covariance::Setting> {
         inline static Node
@@ -192,18 +186,4 @@ namespace YAML {
             return true;
         }
     };
-
-    inline Emitter &
-    operator<<(Emitter &out, const erl::covariance::Covariance::Setting &setting) {
-        out << BeginMap;
-        out << Key << "type" << Value << setting.type;
-        out << Key << "x_dim" << Value << setting.x_dim;
-        out << Key << "alpha" << Value << setting.alpha;
-        out << Key << "scale" << Value << setting.scale;
-        out << Key << "scale_mix" << Value << setting.scale_mix;
-        out << Key << "weights" << Value << setting.weights;
-        out << EndMap;
-        return out;
-    }
-
 }  // namespace YAML
