@@ -4,63 +4,61 @@
 
 namespace erl::covariance {
 
-    static inline double
+    static double
     InlineMatern32(const double &alpha, const double &a1, const double &a2, const double &r) {
         return (alpha + a1 * r) * std::exp(-a2 * r);
     }
 
     // cov(f1, df2/dx2) = d k(x1, x2) / dx2
     // note: dx = x1 - x2
-    static inline double
+    static double
     InlineMatern32X1BetweenGradx2(double a, double b, double dx, double r) {
         return b * dx * std::exp(-a * r);
     }
 
     // d^2 k(x1, x2) / dx_1 dx_2
-    static inline double
+    static double
     InlineMatern32Gradx1BetweenGradx2(double a, double b, double delta, double dx_1, double dx_2, double r) {
-        double c = dx_1 * dx_2;
-        if (std::abs(c) < 1.e-6 && std::abs(r) < 1.e-6) {
-            return b;
-        } else {
-            return b * (delta - a * dx_1 * dx_2 / r) * std::exp(-a * r);
-        }
+        if (std::abs(dx_1 * dx_2) < 1.e-6 && std::abs(r) < 1.e-6) { return b; }
+        return b * (delta - a * dx_1 * dx_2 / r) * std::exp(-a * r);
     }
 
     template<long Dim>
     class Matern32 : public Covariance {
 
     public:
-        static std::shared_ptr<Matern32>
-        Create(std::shared_ptr<Setting> setting = nullptr) {
-            if (setting == nullptr) {
-                setting = std::make_shared<Matern32::Setting>();
-                setting->type = Type::kMatern32;
-            }
-            return std::shared_ptr<Matern32>(new Matern32(std::move(setting)));
+        std::shared_ptr<Covariance>
+        Create() const override {
+            return std::make_shared<Matern32>(std::make_shared<Setting>());
+        }
+
+        explicit Matern32(std::shared_ptr<Setting> setting)
+            : Covariance(std::move(setting)) {
+            ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
+            ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
         }
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final {
             long n = mat_x.cols();
-            ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
-            ERL_ASSERTM(k_mat.cols() >= n, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x.rows();
             } else {
                 dim = Dim;
             }
-            double a2 = std::sqrt(3.) / m_setting_->scale;
-            double a1 = a2 * m_setting_->alpha;
+            const double a2 = std::sqrt(3.) / m_setting_->scale;
+            const double a1 = a2 * m_setting_->alpha;
             for (long i = 0; i < n; ++i) {
                 for (long j = i; j < n; ++j) {
                     if (i == j) {
                         k_mat(i, i) = m_setting_->alpha;
                     } else {
-                        double r = 0;
+                        double r = 0.0;
                         for (long k = 0; k < dim; ++k) {
-                            double dx = mat_x(k, i) - mat_x(k, j);
+                            const double dx = mat_x(k, i) - mat_x(k, j);
                             r += dx * dx;
                         }
                         r = std::sqrt(r);  // (mat_x.col(i) - mat_x.col(j)).norm();
@@ -76,24 +74,24 @@ namespace erl::covariance {
         ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_var_y)
             const final {
             long n = mat_x.cols();
-            ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
-            ERL_ASSERTM(k_mat.cols() >= n, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x.rows();
             } else {
                 dim = Dim;
             }
-            double a2 = std::sqrt(3.) / m_setting_->scale;
-            double a1 = a2 * m_setting_->alpha;
+            const double a2 = std::sqrt(3.) / m_setting_->scale;
+            const double a1 = a2 * m_setting_->alpha;
             for (long i = 0; i < n; ++i) {
                 for (long j = i; j < n; ++j) {
                     if (i == j) {
                         k_mat(i, i) = m_setting_->alpha + vec_var_y[i];
                     } else {
-                        double r = 0;
+                        double r = 0.0;
                         for (long k = 0; k < dim; ++k) {
-                            double dx = mat_x(k, i) - mat_x(k, j);
+                            const double dx = mat_x(k, i) - mat_x(k, j);
                             r += dx * dx;
                         }
                         r = std::sqrt(r);  // (mat_x.col(i) - mat_x.col(j)).norm();
@@ -108,24 +106,24 @@ namespace erl::covariance {
         [[nodiscard]] std::pair<long, long>
         ComputeKtest(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2)
             const final {
-            ERL_ASSERTM(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x1 and x_2 should have the same dimension.");
+            ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x1 and x_2 should have the same dimension.");
             long n = mat_x1.cols();
             long m = mat_x2.cols();
-            ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
-            ERL_ASSERTM(k_mat.cols() >= m, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), m);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= m, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), m);
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x1.rows();
             } else {
                 dim = Dim;
             }
-            double a2 = std::sqrt(3.) / m_setting_->scale;
-            double a1 = a2 * m_setting_->alpha;
+            const double a2 = std::sqrt(3.) / m_setting_->scale;
+            const double a1 = a2 * m_setting_->alpha;
             for (long i = 0; i < n; ++i) {
                 for (long j = 0; j < m; ++j) {
                     double r = 0;
                     for (long k = 0; k < dim; ++k) {
-                        double dx = mat_x1(k, i) - mat_x2(k, j);
+                        const double dx = mat_x1(k, i) - mat_x2(k, j);
                         r += dx * dx;
                     }
                     r = std::sqrt(r);  // (mat_x1.col(i) - mat_x2.col(j)).norm();
@@ -148,8 +146,8 @@ namespace erl::covariance {
                 dim = Dim;
             }
 
-            ERL_ASSERTM(mat_x.rows() == dim, "Each column of mat_x should be %ld-D vector.", dim);
-            long n = mat_x.cols();
+            ERL_DEBUG_ASSERT(mat_x.rows() == dim, "Each column of mat_x should be {}-D vector.", dim);
+            const long n = mat_x.cols();
             std::vector<long> grad_indices;
             grad_indices.reserve(vec_grad_flags.size());
             long n_grad = 0;
@@ -162,12 +160,12 @@ namespace erl::covariance {
             }
             long n_rows = n + n_grad * dim;
             long n_cols = n_rows;
-            ERL_ASSERTM(k_mat.rows() >= n_rows, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n_rows);
-            ERL_ASSERTM(k_mat.cols() >= n_cols, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n_cols);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
 
-            double a2 = std::sqrt(3.) / m_setting_->scale;
-            double a1 = a2 * m_setting_->alpha;
-            double b = a2 * a2 * m_setting_->alpha;
+            const double a2 = std::sqrt(3.) / m_setting_->scale;
+            const double a1 = a2 * m_setting_->alpha;
+            const double b = a2 * a2 * m_setting_->alpha;
             for (long i = 0; i < n; ++i) {
                 k_mat(i, i) = m_setting_->alpha;  // cov(f_i, f_i)
                 if (vec_grad_flags[i]) {
@@ -185,7 +183,7 @@ namespace erl::covariance {
                 for (long j = i + 1; j < n; ++j) {
                     double r = 0;
                     for (long k = 0; k < dim; ++k) {
-                        double dx = mat_x(k, i) - mat_x(k, j);
+                        const double dx = mat_x(k, i) - mat_x(k, j);
                         r += dx * dx;
                     }
                     r = std::sqrt(r);                                            // (mat_x.col(i) - mat_x.col(j)).norm();
@@ -208,12 +206,12 @@ namespace erl::covariance {
                             // cov(df_i, df_j) = cov(df_j, df_i)
                             for (long k = 0, ki = grad_indices[i], kj = grad_indices[j]; k < dim; ++k, ki += n_grad, kj += n_grad) {
                                 // between Dim-k and Dim-k
-                                double dxk = mat_x(k, i) - mat_x(k, j);
+                                const double dxk = mat_x(k, i) - mat_x(k, j);
                                 k_mat(ki, kj) = InlineMatern32Gradx1BetweenGradx2(a2, b, 1., dxk, dxk, r);  // cov(df_i/dx_k, df_j/dx_k)
                                 k_mat(kj, ki) = k_mat(ki, kj);                                              // cov(df_j/dx_k, df_i/dx_k)
                                 for (long l = k + 1, li = ki + n_grad, lj = kj + n_grad; l < dim; ++l, li += n_grad, lj += n_grad) {
                                     // between Dim-k and Dim-l
-                                    double dxl = mat_x(l, i) - mat_x(l, j);
+                                    const double dxl = mat_x(l, i) - mat_x(l, j);
                                     k_mat(ki, lj) = InlineMatern32Gradx1BetweenGradx2(a2, b, 0., dxk, dxl, r);  // cov(df_i/dx_k, df_j/dx_l)
                                     k_mat(li, kj) = k_mat(ki, lj);                                              // cov(df_i/dx_l, df_j/dx_k)
                                     k_mat(lj, ki) = k_mat(ki, lj);                                              // cov(df_j/dx_l, df_i/dx_k)
@@ -249,8 +247,8 @@ namespace erl::covariance {
                 dim = Dim;
             }
 
-            ERL_ASSERTM(mat_x.rows() == dim, "Each column of mat_x should be %ld-D vector.", dim);
-            long n = mat_x.cols();
+            ERL_DEBUG_ASSERT(mat_x.rows() == dim, "Each column of mat_x should be {}-D vector.", dim);
+            const long n = mat_x.cols();
             std::vector<long> grad_indices;
             grad_indices.reserve(vec_grad_flags.size());
             long n_grad = 0;
@@ -263,12 +261,12 @@ namespace erl::covariance {
             }
             long n_rows = n + n_grad * dim;
             long n_cols = n_rows;
-            ERL_ASSERTM(k_mat.rows() >= n_rows, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n_rows);
-            ERL_ASSERTM(k_mat.cols() >= n_cols, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n_cols);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
 
-            double a2 = std::sqrt(3.) / m_setting_->scale;
-            double a1 = a2 * m_setting_->alpha;
-            double b = a2 * a2 * m_setting_->alpha;
+            const double a2 = std::sqrt(3.) / m_setting_->scale;
+            const double a1 = a2 * m_setting_->alpha;
+            const double b = a2 * a2 * m_setting_->alpha;
             for (long i = 0; i < n; ++i) {
                 k_mat(i, i) = m_setting_->alpha + vec_var_x[i] + vec_var_y[i];  // cov(f_i, f_i)
                 if (vec_grad_flags[i]) {
@@ -286,7 +284,7 @@ namespace erl::covariance {
                 for (long j = i + 1; j < n; ++j) {
                     double r = 0;
                     for (long k = 0; k < dim; ++k) {
-                        double dx = mat_x(k, i) - mat_x(k, j);
+                        const double dx = mat_x(k, i) - mat_x(k, j);
                         r += dx * dx;
                     }
                     r = std::sqrt(r);                                            // (mat_x.col(i) - mat_x.col(j)).norm();
@@ -309,12 +307,12 @@ namespace erl::covariance {
                             // cov(df_i, df_j) = cov(df_j, df_i)
                             for (long k = 0, ki = grad_indices[i], kj = grad_indices[j]; k < dim; ++k, ki += n_grad, kj += n_grad) {
                                 // between Dim-k and Dim-k
-                                double dxk = mat_x(k, i) - mat_x(k, j);
+                                const double dxk = mat_x(k, i) - mat_x(k, j);
                                 k_mat(ki, kj) = InlineMatern32Gradx1BetweenGradx2(a2, b, 1., dxk, dxk, r);  // cov(df_i, df_j)
                                 k_mat(kj, ki) = k_mat(ki, kj);                                              // cov(df_j, df_i)
                                 for (long l = k + 1, li = ki + n_grad, lj = kj + n_grad; l < dim; ++l, li += n_grad, lj += n_grad) {
                                     // between Dim-k and Dim-l
-                                    double dxl = mat_x(l, i) - mat_x(l, j);
+                                    const double dxl = mat_x(l, i) - mat_x(l, j);
                                     k_mat(ki, lj) = InlineMatern32Gradx1BetweenGradx2(a2, b, 0., dxk, dxl, r);
                                     k_mat(li, kj) = k_mat(ki, lj);
                                     k_mat(lj, ki) = k_mat(ki, lj);  // cov(df_j, df_i)
@@ -348,10 +346,10 @@ namespace erl::covariance {
                 dim = Dim;
             }
 
-            ERL_ASSERTM(mat_x1.rows() == dim, "Each column of mat_x1 should be %ld-D vector.", dim);
-            ERL_ASSERTM(mat_x2.rows() == dim, "Each column of mat_x2 should be %ld-D vector.", dim);
-            long n = mat_x1.cols();
-            long m = mat_x2.cols();
+            ERL_DEBUG_ASSERT(mat_x1.rows() == dim, "Each column of mat_x1 should be {}-D vector.", dim);
+            ERL_DEBUG_ASSERT(mat_x2.rows() == dim, "Each column of mat_x2 should be {}-D vector.", dim);
+            const long n = mat_x1.cols();
+            const long m = mat_x2.cols();
             std::vector<long> grad_indices;
             grad_indices.reserve(vec_grad1_flags.size());
             long n_grad = 0;
@@ -364,17 +362,17 @@ namespace erl::covariance {
             }
             long n_rows = n + n_grad * dim;
             long n_cols = m * (dim + 1);
-            ERL_ASSERTM(k_mat.rows() >= n_rows, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n_rows);
-            ERL_ASSERTM(k_mat.cols() >= n_cols, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n_cols);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
 
-            double a2 = std::sqrt(3.) / m_setting_->scale;
-            double a1 = a2 * m_setting_->alpha;
-            double b = a2 * a2 * m_setting_->alpha;
+            const double a2 = std::sqrt(3.) / m_setting_->scale;
+            const double a1 = a2 * m_setting_->alpha;
+            const double b = a2 * a2 * m_setting_->alpha;
             for (long i = 0; i < n; ++i) {
                 for (long j = 0; j < m; ++j) {
                     double r = 0;
                     for (long k = 0; k < dim; ++k) {
-                        double dx = mat_x1(k, i) - mat_x2(k, j);
+                        const double dx = mat_x1(k, i) - mat_x2(k, j);
                         r += dx * dx;
                     }
                     r = std::sqrt(r);                                            // (mat_x1.col(i) - mat_x2.col(j)).norm();
@@ -388,12 +386,12 @@ namespace erl::covariance {
                             k_mat(ki, j) = -k_mat(i, kj);  // cov(df1_i/dx_k, f2_j) = -cov(f1_i, df2_j/dx_k)
 
                             // between Dim-k and Dim-k
-                            double dxk = mat_x1(k, i) - mat_x2(k, j);
+                            const double dxk = mat_x1(k, i) - mat_x2(k, j);
                             k_mat(ki, kj) = InlineMatern32Gradx1BetweenGradx2(a2, b, 1., dxk, dxk, r);  // cov(df1_i/dx_k, df2_j/dx_k)
 
                             for (long l = k + 1, li = ki + n_grad, lj = kj + m; l < dim; ++l, li += n_grad, lj += m) {
                                 // between Dim-k and Dim-l
-                                double dxl = mat_x1(l, i) - mat_x2(l, j);
+                                const double dxl = mat_x1(l, i) - mat_x2(l, j);
                                 k_mat(ki, lj) = InlineMatern32Gradx1BetweenGradx2(a2, b, 0., dxk, dxl, r);  // cov(df1_i/dx_k, df2_j/dx_l)
                                 k_mat(li, kj) = k_mat(ki, lj);                                              // cov(df1_i/dx_l, df2_j/dx_k)
                             }
@@ -403,14 +401,16 @@ namespace erl::covariance {
             }
             return {n_rows, n_cols};
         }
-
-    private:
-        explicit Matern32(std::shared_ptr<Setting> setting)
-            : Covariance(std::move(setting)) {
-            ERL_ASSERTM(m_setting_->type == Type::kMatern32, "setting->type should be kMatern32.");
-            ERL_ASSERTM(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be %ld.", Dim);
-            ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
-        }
     };
+
+    using Matern32_1D = Matern32<1>;
+    using Matern32_2D = Matern32<2>;
+    using Matern32_3D = Matern32<3>;
+    using Matern32_Xd = Matern32<Eigen::Dynamic>;
+
+    ERL_REGISTER_COVARIANCE(Matern32_1D);
+    ERL_REGISTER_COVARIANCE(Matern32_2D);
+    ERL_REGISTER_COVARIANCE(Matern32_3D);
+    ERL_REGISTER_COVARIANCE(Matern32_Xd);
 
 }  // namespace erl::covariance

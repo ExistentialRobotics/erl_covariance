@@ -10,35 +10,37 @@ namespace erl::covariance {
         // ref2: https://www.cs.cmu.edu/~epxing/Class/10708-15/notes/10708_scribe_lecture21.pdf
 
     public:
-        static std::shared_ptr<OrnsteinUhlenbeck>
-        Create(std::shared_ptr<Setting> setting = nullptr) {
-            if (setting == nullptr) {
-                setting = std::make_shared<OrnsteinUhlenbeck::Setting>();
-                setting->type = Type::kOrnsteinUhlenbeck;
-            }
-            return std::shared_ptr<OrnsteinUhlenbeck>(new OrnsteinUhlenbeck(std::move(setting)));
+        std::shared_ptr<Covariance>
+        Create() const override {
+            return std::make_shared<OrnsteinUhlenbeck>(std::make_shared<Setting>());
+        }
+
+        explicit OrnsteinUhlenbeck(std::shared_ptr<Setting> setting)
+            : Covariance(std::move(setting)) {
+            ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
+            ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
         }
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final {
             long n = mat_x.cols();
-            ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
-            ERL_ASSERTM(k_mat.cols() >= n, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x.rows();
             } else {
                 dim = Dim;
             }
-            double a = -1. / m_setting_->scale;
+            const double a = -1. / m_setting_->scale;
             for (long i = 0; i < n; ++i) {
                 for (long j = i; j < n; ++j) {
                     if (i == j) {
                         k_mat(i, i) = m_setting_->alpha;
                     } else {
-                        double r = 0;
+                        double r = 0.0;
                         for (long k = 0; k < dim; ++k) {
-                            double dx = mat_x(k, i) - mat_x(k, j);
+                            const double dx = mat_x(k, i) - mat_x(k, j);
                             r += dx * dx;
                         }
                         r = std::sqrt(r);  // (mat_x.col(i) - mat_x.col(j)).norm();
@@ -54,24 +56,24 @@ namespace erl::covariance {
         ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_var_y)
             const final {
             long n = mat_x.cols();
-            ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
-            ERL_ASSERTM(k_mat.cols() >= n, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), n);
-            ERL_ASSERTM(n == vec_var_y.size(), "#elements of vec_sigma_y does not equal to #columns of mat_x.");
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
+            ERL_DEBUG_ASSERT(n == vec_var_y.size(), "#elements of vec_sigma_y does not equal to #columns of mat_x.");
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x.rows();
             } else {
                 dim = Dim;
             }
-            double a = -1. / m_setting_->scale;
+            const double a = -1. / m_setting_->scale;
             for (long i = 0; i < n; ++i) {
                 for (long j = i; j < n; ++j) {
                     if (i == j) {
                         k_mat(i, i) = m_setting_->alpha + vec_var_y[i];
                     } else {
-                        double r = 0;
+                        double r = 0.0;
                         for (long k = 0; k < dim; ++k) {
-                            double dx = mat_x(k, i) - mat_x(k, j);
+                            const double dx = mat_x(k, i) - mat_x(k, j);
                             r += dx * dx;
                         }
                         r = std::sqrt(r);  // (mat_x.col(i) - mat_x.col(j)).norm();
@@ -86,24 +88,24 @@ namespace erl::covariance {
         [[nodiscard]] std::pair<long, long>
         ComputeKtest(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2)
             const final {
-            ERL_ASSERTM(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x_1 and x_2 should have the same dimension.");
+            ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x_1 and x_2 should have the same dimension.");
 
             long n = mat_x1.cols();
             long m = mat_x2.cols();
-            ERL_ASSERTM(k_mat.rows() >= n, "k_mat.rows() = %ld, it should be >= %ld.", k_mat.rows(), n);
-            ERL_ASSERTM(k_mat.cols() >= m, "k_mat.cols() = %ld, it should be >= %ld.", k_mat.cols(), m);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= m, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), m);
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x1.rows();
             } else {
                 dim = Dim;
             }
-            double a = -1. / m_setting_->scale;
+            const double a = -1. / m_setting_->scale;
             for (long i = 0; i < n; ++i) {
                 for (long j = 0; j < m; ++j) {
-                    double r = 0;
+                    double r = 0.0;
                     for (long k = 0; k < dim; ++k) {
-                        double dx = mat_x1(k, i) - mat_x2(k, j);
+                        const double dx = mat_x1(k, i) - mat_x2(k, j);
                         r += dx * dx;
                     }
                     r = std::sqrt(r);  // (mat_x1.col(i) - mat_x2.col(j)).norm();
@@ -143,13 +145,15 @@ namespace erl::covariance {
         ) const final {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
-
-    private:
-        explicit OrnsteinUhlenbeck(std::shared_ptr<Setting> setting)
-            : Covariance(std::move(setting)) {
-            ERL_ASSERTM(m_setting_->type == Type::kOrnsteinUhlenbeck, "setting->type should be kOrnsteinUhlenbeck.");
-            ERL_ASSERTM(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be %ld.", Dim);
-            ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
-        }
     };
+
+    using OrnsteinUhlenbeck1D = OrnsteinUhlenbeck<1>;
+    using OrnsteinUhlenbeck2D = OrnsteinUhlenbeck<2>;
+    using OrnsteinUhlenbeck3D = OrnsteinUhlenbeck<3>;
+    using OrnsteinUhlenbeckXd = OrnsteinUhlenbeck<Eigen::Dynamic>;
+
+    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck1D);
+    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck2D);
+    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck3D);
+    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeckXd);
 }  // namespace erl::covariance

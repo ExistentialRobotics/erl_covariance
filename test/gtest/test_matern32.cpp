@@ -32,15 +32,12 @@ struct Config {
         mat_x_2.array() *= 10;
         vec_sigma_x = Eigen::VectorXd::Random(n);
 
-        matern_32_setting->type = covariance::Covariance::Type::kMatern32;
         matern_32_setting->alpha = kMatern32Alpha;
         matern_32_setting->scale = kMatern32Scale;
 
         grad_flag_1 = Eigen::VectorXb::Random(n);
         grad_flag_2.reserve(n);
-        for (bool &flag : grad_flag_1) {
-            grad_flag_2.push_back(flag ? 1. : 0.);
-        }
+        std::transform(grad_flag_1.begin(), grad_flag_1.end(), std::back_inserter(grad_flag_2), [](bool flag) { return flag ? 1. : 0.; });
 
         sigma_grad = Eigen::VectorXd::Random(n);
         sigma_y = Eigen::VectorXd::Constant(n, kNoiseParam);
@@ -63,7 +60,7 @@ public:
 
 TEST(Matern32_2D, ComputeKtrainWithGradient) {
     const auto &kConfig = TestEnvironment::GetConfig();
-    auto matern_32 = covariance::Matern32<2>::Create(kConfig.matern_32_setting);
+    auto matern_32 = covariance::Matern32_2D(kConfig.matern_32_setting);
 
     auto size = covariance::Matern32<2>::GetMinimumKtrainSize(kConfig.n, kConfig.grad_flag_1.cast<long>().sum(), kConfig.d);
     Eigen::MatrixXd ans(size.first, size.second), gt;
@@ -71,7 +68,7 @@ TEST(Matern32_2D, ComputeKtrainWithGradient) {
         gt = Matern32SparseDeriv1(kConfig.mat_x_1, kConfig.grad_flag_2, kMatern32Scale, kConfig.vec_sigma_x, kNoiseParam, kConfig.sigma_grad);
     });
     common::ReportTime<std::chrono::microseconds>("ans", 10, false, [&]() {
-        (void) matern_32->ComputeKtrainWithGradient(ans, kConfig.mat_x_1, kConfig.grad_flag_1, kConfig.vec_sigma_x, kConfig.sigma_y, kConfig.sigma_grad);
+        (void) matern_32.ComputeKtrainWithGradient(ans, kConfig.mat_x_1, kConfig.grad_flag_1, kConfig.vec_sigma_x, kConfig.sigma_y, kConfig.sigma_grad);
     });
 #ifdef NDEBUG
     ASSERT_EIGEN_MATRIX_NEAR("ComputeKtrainWithGradient", ans, gt, 1.e-15);
@@ -82,7 +79,7 @@ TEST(Matern32_2D, ComputeKtrainWithGradient) {
 
 TEST(Matern32_2D, ComputeKtestWithGradient) {
     const auto &kConfig = TestEnvironment::GetConfig();
-    auto matern_32 = covariance::Matern32<2>::Create(kConfig.matern_32_setting);
+    auto matern_32 = covariance::Matern32<2>(kConfig.matern_32_setting);
 
     auto size = covariance::Matern32<2>::GetMinimumKtestSize(kConfig.n, kConfig.grad_flag_1.cast<long>().sum(), kConfig.d, kConfig.m);
     Eigen::MatrixXd ans(size.first, size.second), gt;
@@ -90,7 +87,7 @@ TEST(Matern32_2D, ComputeKtestWithGradient) {
         gt = Matern32SparseDeriv1(kConfig.mat_x_1, kConfig.grad_flag_2, kConfig.mat_x_2, kMatern32Scale);
     });
     common::ReportTime<std::chrono::microseconds>("ans", 10, false, [&]() {
-        (void) matern_32->ComputeKtestWithGradient(ans, kConfig.mat_x_1, kConfig.grad_flag_1, kConfig.mat_x_2);
+        (void) matern_32.ComputeKtestWithGradient(ans, kConfig.mat_x_1, kConfig.grad_flag_1, kConfig.mat_x_2);
     });
 #ifdef NDEBUG
     ASSERT_EIGEN_MATRIX_NEAR("ComputeKtestWithGradient", ans, gt, 1.e-15);

@@ -9,8 +9,15 @@ namespace erl::covariance {
     class CustomKernelV3 : public Covariance {
 
     public:
-        static std::shared_ptr<CustomKernelV3>
-        Create(std::shared_ptr<Setting> setting = nullptr);
+        std::shared_ptr<Covariance>
+        Create() const override {
+            return std::make_shared<CustomKernelV3>(std::make_shared<Setting>());
+        }
+
+        explicit CustomKernelV3(std::shared_ptr<Setting> setting)
+            : Covariance(std::move(setting)) {
+            if (m_setting_->weights.size() == 0) { m_setting_->weights.setOnes(2); }
+        }
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final;
@@ -44,8 +51,7 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
             const Eigen::Ref<const Eigen::VectorXb> &vec_grad1_flags,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2) const final;
-
-    private:
-        explicit CustomKernelV3(std::shared_ptr<Setting> setting);
     };
+
+    ERL_REGISTER_COVARIANCE(CustomKernelV3);
 }  // namespace erl::covariance
