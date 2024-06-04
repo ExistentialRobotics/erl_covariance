@@ -3,6 +3,7 @@
 #include "erl_common/eigen.hpp"
 #include "erl_common/exception.hpp"
 #include "erl_common/logging.hpp"
+#include "erl_common/string_utils.hpp"
 #include "erl_common/yaml.hpp"
 
 #include <memory>
@@ -73,13 +74,13 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] static std::pair<long, long>
-        GetMinimumKtrainSize(long num_samples, long num_samples_with_gradient, long num_gradient_dimensions) {
+        GetMinimumKtrainSize(const long num_samples, const long num_samples_with_gradient, const long num_gradient_dimensions) {
             long n = num_samples + num_samples_with_gradient * num_gradient_dimensions;
             return {n, n};
         }
 
         [[nodiscard]] static std::pair<long, long>
-        GetMinimumKtestSize(long num_train_samples, long num_train_samples_with_gradient, long num_gradient_dimensions, long num_test_queries) {
+        GetMinimumKtestSize(const long num_train_samples, const long num_train_samples_with_gradient, const long num_gradient_dimensions, const long num_test_queries) {
             return {num_train_samples + num_train_samples_with_gradient * num_gradient_dimensions, num_test_queries * (1 + num_gradient_dimensions)};
         }
 

@@ -1,7 +1,7 @@
 #include "erl_covariance/custom_kernel_v4.hpp"
 
 static double
-InlineExpr(const double &a, const Eigen::VectorXd &weights, const Eigen::Ref<const Eigen::Vector3d> &x_1, const Eigen::Ref<const Eigen::Vector3d> &x_2) {
+InlineExpr(const double a, const Eigen::VectorXd &weights, const Eigen::Ref<const Eigen::Vector3d> &x_1, const Eigen::Ref<const Eigen::Vector3d> &x_2) {
     const double d0 = x_1[0] - x_2[0];
     const double d1 = x_1[1] - x_2[1];
     double d2 = x_1[2] - x_2[2];

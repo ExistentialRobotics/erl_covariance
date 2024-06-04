@@ -9,7 +9,7 @@ namespace erl::covariance {
     class CustomKernelV3 : public Covariance {
 
     public:
-        std::shared_ptr<Covariance>
+        [[nodiscard]] std::shared_ptr<Covariance>
         Create() const override {
             return std::make_shared<CustomKernelV3>(std::make_shared<Setting>());
         }
@@ -17,6 +17,7 @@ namespace erl::covariance {
         explicit CustomKernelV3(std::shared_ptr<Setting> setting)
             : Covariance(std::move(setting)) {
             if (m_setting_->weights.size() == 0) { m_setting_->weights.setOnes(2); }
+            m_setting_->x_dim = 3;
         }
 
         [[nodiscard]] std::pair<long, long>

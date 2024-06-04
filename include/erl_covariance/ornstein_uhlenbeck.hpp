@@ -10,7 +10,7 @@ namespace erl::covariance {
         // ref2: https://www.cs.cmu.edu/~epxing/Class/10708-15/notes/10708_scribe_lecture21.pdf
 
     public:
-        std::shared_ptr<Covariance>
+        [[nodiscard]] std::shared_ptr<Covariance>
         Create() const override {
             return std::make_shared<OrnsteinUhlenbeck>(std::make_shared<Setting>());
         }
@@ -19,6 +19,7 @@ namespace erl::covariance {
             : Covariance(std::move(setting)) {
             ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
             ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
+            m_setting_->x_dim = Dim;
         }
 
         [[nodiscard]] std::pair<long, long>

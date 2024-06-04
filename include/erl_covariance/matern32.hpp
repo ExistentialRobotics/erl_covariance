@@ -5,20 +5,20 @@
 namespace erl::covariance {
 
     static double
-    InlineMatern32(const double &alpha, const double &a1, const double &a2, const double &r) {
+    InlineMatern32(const double alpha, const double a1, const double a2, const double r) {
         return (alpha + a1 * r) * std::exp(-a2 * r);
     }
 
     // cov(f1, df2/dx2) = d k(x1, x2) / dx2
     // note: dx = x1 - x2
     static double
-    InlineMatern32X1BetweenGradx2(double a, double b, double dx, double r) {
+    InlineMatern32X1BetweenGradx2(const double a, const double b, const double dx, const double r) {
         return b * dx * std::exp(-a * r);
     }
 
     // d^2 k(x1, x2) / dx_1 dx_2
     static double
-    InlineMatern32Gradx1BetweenGradx2(double a, double b, double delta, double dx_1, double dx_2, double r) {
+    InlineMatern32Gradx1BetweenGradx2(const double a, const double b, const double delta, const double dx_1, const double dx_2, const double r) {
         if (std::abs(dx_1 * dx_2) < 1.e-6 && std::abs(r) < 1.e-6) { return b; }
         return b * (delta - a * dx_1 * dx_2 / r) * std::exp(-a * r);
     }
@@ -27,7 +27,7 @@ namespace erl::covariance {
     class Matern32 : public Covariance {
 
     public:
-        std::shared_ptr<Covariance>
+        [[nodiscard]] std::shared_ptr<Covariance>
         Create() const override {
             return std::make_shared<Matern32>(std::make_shared<Setting>());
         }
@@ -36,6 +36,7 @@ namespace erl::covariance {
             : Covariance(std::move(setting)) {
             ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
             ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
+            m_setting_->x_dim = Dim;
         }
 
         [[nodiscard]] std::pair<long, long>

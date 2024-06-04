@@ -3,8 +3,8 @@
 #include "covariance.hpp"
 
 namespace erl::covariance {
-    static inline double
-    InlineRq(double a, double b, double squared_norm) {
+    static double
+    InlineRq(const double a, const double b, const double squared_norm) {
         return std::pow(1 + squared_norm * a, -b);
     }
 
@@ -12,7 +12,7 @@ namespace erl::covariance {
     class RationalQuadratic : public Covariance {
         // ref: https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RationalQuadratic.html
     public:
-        std::shared_ptr<Covariance>
+        [[nodiscard]] std::shared_ptr<Covariance>
         Create() const override {
             return std::make_shared<RationalQuadratic>(std::make_shared<Setting>());
         }
@@ -21,6 +21,7 @@ namespace erl::covariance {
             : Covariance(std::move(setting)) {
             ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
             ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
+            m_setting_->x_dim = Dim;
         }
 
         [[nodiscard]] std::pair<long, long>

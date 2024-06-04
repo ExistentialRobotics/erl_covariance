@@ -8,7 +8,7 @@ namespace erl::covariance {
     class RadialBiasFunction : public Covariance {
         // ref: https://en.wikipedia.org/wiki/Radial_basis_function_kernel
     public:
-        std::shared_ptr<Covariance>
+        [[nodiscard]] std::shared_ptr<Covariance>
         Create() const override {
             return std::make_shared<RadialBiasFunction>(std::make_shared<Setting>());
         }
@@ -17,6 +17,7 @@ namespace erl::covariance {
             : Covariance(std::move(setting)) {
             ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
             ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
+            m_setting_->x_dim = Dim;
         }
 
         [[nodiscard]] std::pair<long, long>

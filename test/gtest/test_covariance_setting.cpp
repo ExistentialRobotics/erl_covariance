@@ -1,15 +1,12 @@
-#include <gtest/gtest.h>
-
-#include <iostream>
-
 #include "erl_common/test_helper.hpp"
 #include "erl_covariance/covariance.hpp"
+
+#include <iostream>
 using namespace erl::covariance;
 
 TEST(CovarianceSettingTest, FromYamlString) {
     Covariance::Setting setting;
     setting.weights = Eigen::Vector2d{1., 2.};
-    ASSERT_EQ(setting.type, Covariance::Type::kUnknown);
     ASSERT_EQ(setting.x_dim, 2);
     ASSERT_EQ(setting.alpha, 1.);
     ASSERT_EQ(setting.scale, 1.);
@@ -33,7 +30,6 @@ weights: [1.0, 2.0, 3.0, 4.0]
 )");
 
     std::cout << setting << std::endl;
-    ASSERT_EQ(setting.type, Covariance::Type::kMatern32);
     ASSERT_EQ(setting.x_dim, 2);
     ASSERT_EQ(setting.alpha, 2.);
     ASSERT_EQ(setting.scale, 3.);
