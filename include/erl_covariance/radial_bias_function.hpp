@@ -9,8 +9,9 @@ namespace erl::covariance {
         // ref: https://en.wikipedia.org/wiki/Radial_basis_function_kernel
     public:
         [[nodiscard]] std::shared_ptr<Covariance>
-        Create() const override {
-            return std::make_shared<RadialBiasFunction>(std::make_shared<Setting>());
+        Create(std::shared_ptr<Setting> setting) const override {
+            if (setting == nullptr) { setting = std::make_shared<Setting>(); }
+            return std::make_shared<RadialBiasFunction>(std::move(setting));
         }
 
         explicit RadialBiasFunction(std::shared_ptr<Setting> setting)

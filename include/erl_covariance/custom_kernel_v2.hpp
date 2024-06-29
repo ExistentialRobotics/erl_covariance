@@ -10,14 +10,20 @@ namespace erl::covariance {
 
     public:
         [[nodiscard]] std::shared_ptr<Covariance>
-        Create() const override {
-            return std::make_shared<CustomKernelV2>(std::make_shared<Setting>());
+        Create(std::shared_ptr<Setting> setting) const override {
+            if (setting == nullptr) { setting = std::make_shared<Setting>(); }
+            return std::make_shared<CustomKernelV2>(std::move(setting));
         }
 
         explicit CustomKernelV2(std::shared_ptr<Setting> setting)
             : Covariance(std::move(setting)) {
             if (m_setting_->weights.size() == 0) { m_setting_->weights.setOnes(4); }
             m_setting_->x_dim = 4;
+        }
+
+        [[nodiscard]] std::string
+        GetCovarianceType() const override {
+            return "CustomKernelV2";
         }
 
         [[nodiscard]] std::pair<long, long>

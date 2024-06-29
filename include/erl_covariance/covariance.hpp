@@ -3,9 +3,9 @@
 #include "erl_common/eigen.hpp"
 #include "erl_common/exception.hpp"
 #include "erl_common/logging.hpp"
-#include "erl_common/string_utils.hpp"
 #include "erl_common/yaml.hpp"
 
+#include <functional>
 #include <memory>
 
 namespace erl::covariance {
@@ -14,20 +14,18 @@ namespace erl::covariance {
     // ref2: https://www.cs.toronto.edu/~duvenaud/cookbook/
 
     class Covariance {
-    protected:
-        inline static std::map<std::string, std::shared_ptr<Covariance>> s_class_id_mapping_ = {};
-
     public:
         // structure for holding the parameters
         struct Setting : public common::Yamlable<Setting> {
             long x_dim = 2;           // dimension of input space
             double alpha = 1.;        // overall covariance magnitude
-            double scale = 1.;        // m_scale_ length
+            double scale = 1.;        // scale length
             double scale_mix = 1.;    // used by RationalQuadratic, decreasing this value allows more local variations, inf --> Gaussian kernel
             Eigen::VectorXd weights;  // used by some custom kernels
         };
 
     protected:
+        inline static std::map<std::string, std::function<std::shared_ptr<Covariance>(std::shared_ptr<Setting>)>> s_class_id_mapping_ = {};
         std::shared_ptr<Setting> m_setting_ = nullptr;
 
     public:
@@ -36,36 +34,36 @@ namespace erl::covariance {
          * returns actual class name as string for identification
          * @return The type of the tree.
          */
-        [[nodiscard]] std::string
-        GetCovarianceType() const {
-            return demangle(typeid(*this).name());
-        }
+        [[nodiscard]] virtual std::string
+        GetCovarianceType() const = 0;
 
         /**
          * Implemented by derived classes to create a new tree of the same type.
          * @return A new tree of the same type.
          */
         [[nodiscard]] virtual std::shared_ptr<Covariance>
-        Create() const = 0;
+        Create(std::shared_ptr<Setting> setting) const = 0;
 
         /**
          * Create a new covariance of the given type.
          * @param covariance_type
+         * @param setting
          * @return
          */
         static std::shared_ptr<Covariance>
-        CreateCovariance(const std::string &covariance_type) {
-            const auto it = s_class_id_mapping_.find(covariance_type);
-            if (it == s_class_id_mapping_.end()) {
-                ERL_WARN("Unknown covariance type: {}", covariance_type);
-                return nullptr;
-            }
-            return it->second->Create();
-        }
+        CreateCovariance(const std::string &covariance_type, std::shared_ptr<Setting> setting);
 
-        static void
-        RegisterCovarianceType(const std::shared_ptr<Covariance> &covariance) {
-            s_class_id_mapping_[covariance->GetCovarianceType()] = covariance;
+        template<typename Derived>
+        static bool
+        RegisterCovarianceType(const std::string &covariance_type) {
+            if (s_class_id_mapping_.find(covariance_type) != s_class_id_mapping_.end()) {
+                ERL_WARN("{} is already registered.", covariance_type);
+                return false;
+            }
+
+            s_class_id_mapping_[covariance_type] = [](std::shared_ptr<Setting> setting) { return std::make_shared<Derived>(std::move(setting)); };
+            ERL_DEBUG("{} is registered.", covariance_type);
+            return true;
         }
 
         [[nodiscard]] std::shared_ptr<Setting>
@@ -80,7 +78,11 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] static std::pair<long, long>
-        GetMinimumKtestSize(const long num_train_samples, const long num_train_samples_with_gradient, const long num_gradient_dimensions, const long num_test_queries) {
+        GetMinimumKtestSize(
+            const long num_train_samples,
+            const long num_train_samples_with_gradient,
+            const long num_gradient_dimensions,
+            const long num_test_queries) {
             return {num_train_samples + num_train_samples_with_gradient * num_gradient_dimensions, num_test_queries * (1 + num_gradient_dimensions)};
         }
 
@@ -132,14 +134,7 @@ namespace erl::covariance {
             : m_setting_(std::move(setting)) {}
     };
 
-#define ERL_REGISTER_COVARIANCE(covariance_type)                      \
-    inline const volatile bool kRegistered##covariance_type = []() {  \
-        auto setting = std::make_shared<covariance_type::Setting>();  \
-        auto covariance = std::make_shared<covariance_type>(setting); \
-        Covariance::RegisterCovarianceType(covariance);               \
-        ERL_DEBUG(#covariance_type " is registered.");                \
-        return true;                                                  \
-    }()
+#define ERL_REGISTER_COVARIANCE(Derived) inline const volatile bool kRegistered##Derived = Covariance::RegisterCovarianceType<Derived>(#Derived)
 }  // namespace erl::covariance
 
 template<>

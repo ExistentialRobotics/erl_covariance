@@ -13,8 +13,9 @@ namespace erl::covariance {
         // ref: https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RationalQuadratic.html
     public:
         [[nodiscard]] std::shared_ptr<Covariance>
-        Create() const override {
-            return std::make_shared<RationalQuadratic>(std::make_shared<Setting>());
+        Create(std::shared_ptr<Setting> setting) const override {
+            if (setting == nullptr) { setting = std::make_shared<Setting>(); }
+            return std::make_shared<RationalQuadratic>(std::move(setting));
         }
 
         explicit RationalQuadratic(std::shared_ptr<Setting> setting)
