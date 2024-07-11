@@ -11,6 +11,7 @@ BindCovariance(const py::module &m) {
 
     py::class_<Covariance::Setting, YamlableBase, std::shared_ptr<Covariance::Setting>>(py_covariance, "Setting")
         .def(py::init())
+        .def_readwrite("x_dim", &Covariance::Setting::x_dim)
         .def_readwrite("alpha", &Covariance::Setting::alpha)
         .def_readwrite("scale", &Covariance::Setting::scale)
         .def_readwrite("scale_mix", &Covariance::Setting::scale_mix)
