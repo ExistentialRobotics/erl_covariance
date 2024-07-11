@@ -27,37 +27,45 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final;
+        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, long num_samples, Eigen::MatrixXd &k_mat) const final;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_var_y)
-            const final;
+        ComputeKtrain(
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
+            long num_samples,
+            Eigen::MatrixXd &k_mat) const final;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtest(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2)
+        ComputeKtest(
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
+            long num_samples1,
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
+            long num_samples2,
+            Eigen::MatrixXd &k_mat) const final;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, Eigen::MatrixXd &k_mat)
             const final;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
-            Eigen::Ref<Eigen::MatrixXd> k_mat,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-            const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags) const final;
-
-        [[nodiscard]] std::pair<long, long>
-        ComputeKtrainWithGradient(
-            Eigen::Ref<Eigen::MatrixXd> k_mat,
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-            const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags,
+            long num_samples,
+            Eigen::VectorXl &vec_grad_flags,
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_x,
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad) const final;
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad,
+            Eigen::MatrixXd &k_mat) const final;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(
-            Eigen::Ref<Eigen::MatrixXd> k_mat,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
-            const Eigen::Ref<const Eigen::VectorXb> &vec_grad1_flags,
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2) const final;
+            long num_samples1,
+            const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
+            long num_samples2,
+            Eigen::MatrixXd &k_mat) const final;
     };
 
     ERL_REGISTER_COVARIANCE(CustomKernelV4);

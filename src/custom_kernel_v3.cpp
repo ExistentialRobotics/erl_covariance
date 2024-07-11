@@ -1,10 +1,10 @@
 #include "erl_covariance/custom_kernel_v3.hpp"
 
 static double
-InlineExpr(const double a, const Eigen::VectorXd &weights, const Eigen::Ref<const Eigen::Vector3d> &x_1, const Eigen::Ref<const Eigen::Vector3d> &x_2) {
-    const double d0 = x_1[0] - x_2[0];
-    const double d1 = x_1[1] - x_2[1];
-    double d2 = x_1[2] - x_2[2];
+InlineExpr(const double a, const double *weights, const double *x1, const double *x2) {
+    const double d0 = x1[0] - x2[0];
+    const double d1 = x1[1] - x2[1];
+    double d2 = x1[2] - x2[2];
     d2 = std::abs(d2);
     d2 = std::min(d2, 2 * M_PI - d2);
     return std::exp(-a * (weights[0] * std::sqrt(d0 * d0 + d1 * d1) + weights[1] * d2));
@@ -12,97 +12,103 @@ InlineExpr(const double a, const Eigen::VectorXd &weights, const Eigen::Ref<cons
 
 namespace erl::covariance {
     std::pair<long, long>
-    CustomKernelV3::ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const {
+    CustomKernelV3::ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const long num_samples, Eigen::MatrixXd &k_mat) const {
         ERL_DEBUG_ASSERT(mat_x.rows() == 3, "Each column of mat_x should be 3D vector [x, y, angle].");
         ERL_DEBUG_ASSERT(m_setting_->weights.size() == 2, "Number of weights should be 2. Set GetSetting()->weights at first.");
-        long n = mat_x.cols();
-        ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
-        ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
+        ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
+        ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
 
         const double a = 1. / m_setting_->scale;
-        for (long i = 0; i < n; ++i) {
-            for (long j = i; j < n; ++j) {
+        const double alpha = m_setting_->alpha;
+        const double *weights = m_setting_->weights.data();
+        for (long i = 0; i < num_samples; ++i) {
+            for (long j = i; j < num_samples; ++j) {
                 if (i == j) {
-                    k_mat(i, i) = m_setting_->alpha;
+                    k_mat(i, i) = alpha;
                 } else {
-                    k_mat(i, j) = m_setting_->alpha * InlineExpr(a, m_setting_->weights, mat_x.col(i), mat_x.col(j));
+                    k_mat(i, j) = alpha * InlineExpr(a, weights, mat_x.col(i).data(), mat_x.col(j).data());
                     k_mat(j, i) = k_mat(i, j);
                 }
             }
         }
-        return {n, n};
+        return {num_samples, num_samples};
     }
 
     std::pair<long, long>
     CustomKernelV3::ComputeKtrain(
-        Eigen::Ref<Eigen::MatrixXd> k_mat,
         const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-        const Eigen::Ref<const Eigen::VectorXd> &vec_var_y) const {
+        const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
+        const long num_samples,
+        Eigen::MatrixXd &k_mat) const {
         ERL_DEBUG_ASSERT(mat_x.rows() == 3, "Each column of mat_x should be 3D vector [x, y, angle].");
         ERL_DEBUG_ASSERT(m_setting_->weights.size() == 2, "Number of weights should be 2. Set GetSetting()->weights at first.");
-        long n = mat_x.cols();
-        ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
-        ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
-        ERL_DEBUG_ASSERT(n == vec_var_y.size(), "#elements of vec_sigma_y does not equal to #columns of mat_x.");
+        ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
+        ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
+        ERL_DEBUG_ASSERT(vec_var_y.size() >= num_samples, "vec_var_y does not have enough elements, it should be >= {}.", num_samples);
 
         const double a = 1. / m_setting_->scale;
-        for (long i = 0; i < n; ++i) {
-            for (long j = i; j < n; ++j) {
+        const double alpha = m_setting_->alpha;
+        const double *weights = m_setting_->weights.data();
+        for (long i = 0; i < num_samples; ++i) {
+            for (long j = i; j < num_samples; ++j) {
                 if (i == j) {
-                    k_mat(i, i) = m_setting_->alpha + vec_var_y[i];
+                    k_mat(i, i) = alpha + vec_var_y[i];
                 } else {
-                    k_mat(i, j) = m_setting_->alpha * InlineExpr(a, m_setting_->weights, mat_x.col(i), mat_x.col(j));
+                    k_mat(i, j) = alpha * InlineExpr(a, weights, mat_x.col(i).data(), mat_x.col(j).data());
                     k_mat(j, i) = k_mat(i, j);
                 }
             }
         }
-        return {n, n};
+        return {num_samples, num_samples};
     }
 
     std::pair<long, long>
     CustomKernelV3::ComputeKtest(
-        Eigen::Ref<Eigen::MatrixXd> k_mat,
         const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
-        const Eigen::Ref<const Eigen::MatrixXd> &mat_x2) const {
+        const long num_samples1,
+        const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
+        const long num_samples2,
+        Eigen::MatrixXd &k_mat) const {
         ERL_DEBUG_ASSERT(mat_x1.rows() == 3, "Each column of mat_x1 should be 3D vector [x, y, angle].");
         ERL_DEBUG_ASSERT(mat_x2.rows() == 3, "Each column of mat_x2 should be 3D vector [x, y, angle].");
         ERL_DEBUG_ASSERT(m_setting_->weights.size() == 2, "Number of weights should be 2. Set GetSetting()->weights at first.");
-
-        long n = mat_x1.cols();
-        long m = mat_x2.cols();
-        ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
-        ERL_DEBUG_ASSERT(k_mat.cols() >= m, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), m);
+        ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples1, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples1);
+        ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples2, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples2);
 
         const double a = 1. / m_setting_->scale;
-        for (long i = 0; i < n; ++i) {
-            for (long j = 0; j < m; ++j) { k_mat(i, j) = m_setting_->alpha * InlineExpr(a, m_setting_->weights, mat_x1.col(i), mat_x2.col(j)); }
+        const double alpha = m_setting_->alpha;
+        const double *weights = m_setting_->weights.data();
+        for (long i = 0; i < num_samples1; ++i) {
+            for (long j = 0; j < num_samples2; ++j) { k_mat(i, j) = alpha * InlineExpr(a, weights, mat_x1.col(i).data(), mat_x2.col(j).data()); }
         }
-        return {n, m};
+        return {num_samples1, num_samples2};
     }
 
     std::pair<long, long>
-    CustomKernelV3::ComputeKtrainWithGradient(Eigen::Ref<Eigen::MatrixXd>, const Eigen::Ref<const Eigen::MatrixXd> &, const Eigen::Ref<const Eigen::VectorXb> &)
-        const {
+    CustomKernelV3::ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &, long, Eigen::VectorXl &, Eigen::MatrixXd &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 
     std::pair<long, long>
     CustomKernelV3::ComputeKtrainWithGradient(
-        Eigen::Ref<Eigen::MatrixXd>,
         const Eigen::Ref<const Eigen::MatrixXd> &,
-        const Eigen::Ref<const Eigen::VectorXb> &,
+        long,
+        Eigen::VectorXl &,
         const Eigen::Ref<const Eigen::VectorXd> &,
         const Eigen::Ref<const Eigen::VectorXd> &,
-        const Eigen::Ref<const Eigen::VectorXd> &) const {
+        const Eigen::Ref<const Eigen::VectorXd> &,
+        Eigen::MatrixXd &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 
     std::pair<long, long>
     CustomKernelV3::ComputeKtestWithGradient(
-        Eigen::Ref<Eigen::MatrixXd>,
         const Eigen::Ref<const Eigen::MatrixXd> &,
-        const Eigen::Ref<const Eigen::VectorXb> &,
-        const Eigen::Ref<const Eigen::MatrixXd> &) const {
+        long,
+        const Eigen::Ref<const Eigen::VectorXl> &,
+        const Eigen::Ref<const Eigen::MatrixXd> &,
+        long,
+        Eigen::MatrixXd &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 }  // namespace erl::covariance

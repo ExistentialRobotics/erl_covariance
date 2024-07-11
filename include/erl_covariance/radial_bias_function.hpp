@@ -22,7 +22,7 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final {
+        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const bool parallel) const final {
             long n = mat_x.cols();
             ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
             ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
@@ -32,7 +32,9 @@ namespace erl::covariance {
             } else {
                 dim = Dim;
             }
+
             const double a = 0.5 / (m_setting_->scale * m_setting_->scale);
+#pragma omp parallel for if(parallel) default(none) shared(k_mat, mat_x, dim, n, a)
             for (long i = 0; i < n; ++i) {
                 for (long j = i; j < n; ++j) {
                     if (i == j) {
@@ -52,10 +54,12 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_var_y)
+        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_var_y, const bool parallel)
             const final {
+            (void) parallel;
+
             long n = mat_x.cols();
-            ERL_DEBUG_ASSERT(n == vec_var_y.size(), "#elements of vec_sigma_y does not equal to #columns of m_x_.");
+            ERL_DEBUG_ASSERT(n == vec_var_y.size(), "vec_var_y does not equal to #columns of m_x_.");
             ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
             ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
             long dim;
@@ -65,6 +69,7 @@ namespace erl::covariance {
                 dim = Dim;
             }
             const double a = 0.5 / (m_setting_->scale * m_setting_->scale);
+#pragma omp parallel for if(parallel) default(none) shared(k_mat, mat_x, vec_var_y, dim, n, a)
             for (long i = 0; i < n; ++i) {
                 for (long j = i; j < n; ++j) {
                     if (i == j) {
@@ -84,8 +89,10 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtest(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2)
+        ComputeKtest(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2, const bool parallel)
             const final {
+            (void) parallel;
+
             ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x_1 and x_2 should have the same dimension.");
             long n = mat_x1.cols();
             long m = mat_x2.cols();
@@ -98,6 +105,7 @@ namespace erl::covariance {
                 dim = Dim;
             }
             const double a = 0.5 / (m_setting_->scale * m_setting_->scale);
+#pragma omp parallel for if(parallel) default(none) shared(k_mat, mat_x1, mat_x2, dim, n, m, a)
             for (long i = 0; i < n; ++i) {
                 for (long j = 0; j < m; ++j) {
                     double r = 0.0;  // (mat_x1.col(i) - mat_x2.col(j)).squaredNorm()
@@ -115,7 +123,8 @@ namespace erl::covariance {
         ComputeKtrainWithGradient(
             Eigen::Ref<Eigen::MatrixXd> k_mat,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-            const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags) const final {
+            const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags, const bool parallel) const final {
+            (void) parallel;
 
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
@@ -144,6 +153,7 @@ namespace erl::covariance {
 
             const double l2_inv = 1.0 / (m_setting_->scale * m_setting_->scale);
             const double a = 0.5 * l2_inv;
+#pragma omp parallel for if(parallel) default(none) shared(k_mat, mat_x, vec_grad_flags, grad_indices, dim, n, n_grad, l2_inv, a)
             for (long i = 0; i < n; ++i) {
                 k_mat(i, i) = m_setting_->alpha;  // cov(f_i, f_i)
                 // k_mat(i, i) = m_setting_->alpha + vec_sigma_x(i) + vec_sigma_y(i);  // cov(f_i, f_i)
@@ -218,7 +228,8 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXb> &vec_grad_flags,
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_x,
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad) const final {
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad, const bool parallel) const final {
+            (void) parallel;
 
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
@@ -246,6 +257,7 @@ namespace erl::covariance {
 
             const double l2_inv = 1.0 / (m_setting_->scale * m_setting_->scale);
             const double a = 0.5 * l2_inv;
+#pragma omp parallel for if(parallel) default(none) shared(k_mat, mat_x, vec_grad_flags, grad_indices, vec_var_x, vec_var_y, vec_var_grad, dim, n, n_grad, l2_inv, a)
             for (long i = 0; i < n; ++i) {
                 k_mat(i, i) = m_setting_->alpha + vec_var_x(i) + vec_var_y(i);  // cov(f_i, f_i)
                 if (vec_grad_flags[i]) {
@@ -317,7 +329,8 @@ namespace erl::covariance {
             Eigen::Ref<Eigen::MatrixXd> k_mat,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
             const Eigen::Ref<const Eigen::VectorXb> &vec_grad1_flags,
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2) const final {
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2, const bool parallel) const final {
+            (void) parallel;
 
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
@@ -347,6 +360,7 @@ namespace erl::covariance {
 
             const double l2_inv = 1.0 / (m_setting_->scale * m_setting_->scale);
             const double a = 0.5 * l2_inv;
+#pragma omp parallel for if(parallel) default(none) shared(k_mat, mat_x1, mat_x2, vec_grad1_flags, grad_indices, dim, n, m, n_grad, l2_inv, a)
             for (long i = 0; i < n; ++i) {
                 for (long j = 0; j < m; ++j) {
                     double r2 = 0;  // (mat_x1.col(i) - mat_x2.col(j)).squaredNorm()

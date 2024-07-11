@@ -61,7 +61,7 @@ namespace erl::covariance {
             long n = mat_x.cols();
             ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
             ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
-            ERL_DEBUG_ASSERT(n == vec_var_y.size(), "#elements of vec_sigma_y does not equal to #columns of m_x_.");
+            ERL_DEBUG_ASSERT(n == vec_var_y.size(), "vec_var_y does not equal to #columns of m_x_.");
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x.rows();

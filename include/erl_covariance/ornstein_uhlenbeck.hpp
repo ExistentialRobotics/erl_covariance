@@ -2,6 +2,8 @@
 
 #include "covariance.hpp"
 
+#include <cmath>
+
 namespace erl::covariance {
 
     template<long Dim>
@@ -28,127 +30,137 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x) const final {
-            long n = mat_x.cols();
-            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
+        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const long num_samples, Eigen::MatrixXd &k_mat) const final {
+            ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x.rows();
             } else {
                 dim = Dim;
             }
+
             const double a = -1. / m_setting_->scale;
-            for (long i = 0; i < n; ++i) {
-                for (long j = i; j < n; ++j) {
+            const double alpha = m_setting_->alpha;
+            for (long i = 0; i < num_samples; ++i) {
+                for (long j = i; j < num_samples; ++j) {
                     if (i == j) {
-                        k_mat(i, i) = m_setting_->alpha;
+                        k_mat(i, i) = alpha;
                     } else {
                         double r = 0.0;
                         for (long k = 0; k < dim; ++k) {
                             const double dx = mat_x(k, i) - mat_x(k, j);
                             r += dx * dx;
                         }
-                        r = std::sqrt(r);  // (mat_x.col(i) - mat_x.col(j)).norm();
-                        k_mat(i, j) = m_setting_->alpha * std::exp(a * r);
+                        r = std::sqrt(r);                                           // (mat_x.col(i) - mat_x.col(j)).norm();
+                        k_mat(i, j) = alpha * std::exp(static_cast<float>(a * r));  // using single precision to improve performance
                         k_mat(j, i) = k_mat(i, j);
                     }
                 }
             }
-            return {n, n};
+            return {num_samples, num_samples};
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const Eigen::Ref<const Eigen::VectorXd> &vec_var_y)
-            const final {
-            long n = mat_x.cols();
-            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= n, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n);
-            ERL_DEBUG_ASSERT(n == vec_var_y.size(), "#elements of vec_sigma_y does not equal to #columns of mat_x.");
+        ComputeKtrain(
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
+            const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
+            const long num_samples,
+            Eigen::MatrixXd &k_mat) const final {
+            ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
+            ERL_DEBUG_ASSERT(vec_var_y.size() >= num_samples, "vec_var_y does not have enough elements, it should be >= {}.", num_samples);
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x.rows();
             } else {
                 dim = Dim;
             }
+
             const double a = -1. / m_setting_->scale;
-            for (long i = 0; i < n; ++i) {
-                for (long j = i; j < n; ++j) {
-                    if (i == j) {
-                        k_mat(i, i) = m_setting_->alpha + vec_var_y[i];
-                    } else {
-                        double r = 0.0;
-                        for (long k = 0; k < dim; ++k) {
-                            const double dx = mat_x(k, i) - mat_x(k, j);
-                            r += dx * dx;
-                        }
-                        r = std::sqrt(r);  // (mat_x.col(i) - mat_x.col(j)).norm();
-                        k_mat(i, j) = m_setting_->alpha * std::exp(a * r);
-                        k_mat(j, i) = k_mat(i, j);
+            const double alpha = m_setting_->alpha;
+            for (long j = 0; j < num_samples; ++j) {
+                k_mat(j, j) = alpha + vec_var_y[j];
+                double *k_j_ptr = k_mat.col(j).data();       // use raw pointer to improve performance
+                const double *xj_ptr = mat_x.col(j).data();  // use raw pointer to improve performance
+                for (long i = j + 1; i < num_samples; ++i) {
+                    double r = 0.0;
+                    const double *xi_ptr = mat_x.col(i).data();  // use raw pointer to improve performance
+                    for (long k = 0; k < dim; ++k) {
+                        const double dx = xi_ptr[k] - xj_ptr[k];
+                        r += dx * dx;
                     }
+                    r = std::sqrt(r);           // (mat_x.col(i) - mat_x.col(j)).norm();
+                    double &k_ij = k_j_ptr[i];  // use reference to improve performance
+                    k_ij = alpha * std::exp(static_cast<float>(a * r));
+                    k_mat(j, i) = k_ij;
                 }
             }
-            return {n, n};
+            return {num_samples, num_samples};
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtest(Eigen::Ref<Eigen::MatrixXd> k_mat, const Eigen::Ref<const Eigen::MatrixXd> &mat_x1, const Eigen::Ref<const Eigen::MatrixXd> &mat_x2)
-            const final {
+        ComputeKtest(
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
+            const long num_samples1,
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
+            const long num_samples2,
+            Eigen::MatrixXd &k_mat) const final {
+
             ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x_1 and x_2 should have the same dimension.");
-
-            long n = mat_x1.cols();
-            long m = mat_x2.cols();
-            ERL_DEBUG_ASSERT(k_mat.rows() >= n, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= m, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), m);
+            ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples1, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples1);
+            ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples2, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples2);
             long dim;
             if constexpr (Dim == Eigen::Dynamic) {
                 dim = mat_x1.rows();
             } else {
                 dim = Dim;
             }
+
             const double a = -1. / m_setting_->scale;
-            for (long i = 0; i < n; ++i) {
-                for (long j = 0; j < m; ++j) {
+            const double alpha = m_setting_->alpha;
+            for (long j = 0; j < num_samples2; ++j) {
+                const double *x2_ptr = mat_x2.col(j).data();  // use raw pointer to improve performance
+                double *col_j_ptr = k_mat.col(j).data();      // use raw pointer to improve performance
+                for (long i = 0; i < num_samples1; ++i) {
                     double r = 0.0;
+                    const double *x1_ptr = mat_x1.col(i).data();  // use raw pointer to improve performance
                     for (long k = 0; k < dim; ++k) {
-                        const double dx = mat_x1(k, i) - mat_x2(k, j);
+                        const double dx = x1_ptr[k] - x2_ptr[k];
                         r += dx * dx;
                     }
                     r = std::sqrt(r);  // (mat_x1.col(i) - mat_x2.col(j)).norm();
-                    k_mat(i, j) = m_setting_->alpha * std::exp(a * r);
+                    col_j_ptr[i] = alpha * std::exp(static_cast<float>(a * r));
                 }
             }
-            return {n, m};
+            return {num_samples1, num_samples2};
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrainWithGradient(
-            Eigen::Ref<Eigen::MatrixXd>,                // k_mat
-            const Eigen::Ref<const Eigen::MatrixXd> &,  // mat_x
-            const Eigen::Ref<const Eigen::VectorXb> &   // vec_grad_flags
-        ) const final {
+        ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &, long, Eigen::VectorXl &, Eigen::MatrixXd &) const final {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
-            Eigen::Ref<Eigen::MatrixXd>,                // k_mat
-            const Eigen::Ref<const Eigen::MatrixXd> &,  // mat_x
-            const Eigen::Ref<const Eigen::VectorXb> &,  // vec_grad_flags
-            const Eigen::Ref<const Eigen::VectorXd> &,  // vec_var_x
-            const Eigen::Ref<const Eigen::VectorXd> &,  // vec_var_y
-            const Eigen::Ref<const Eigen::VectorXd> &   // vec_var_grad
-        ) const final {
+            const Eigen::Ref<const Eigen::MatrixXd> &,
+            long,
+            Eigen::VectorXl &,
+            const Eigen::Ref<const Eigen::VectorXd> &,
+            const Eigen::Ref<const Eigen::VectorXd> &,
+            const Eigen::Ref<const Eigen::VectorXd> &,
+            Eigen::MatrixXd &) const final {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(
-            Eigen::Ref<Eigen::MatrixXd>,                // k_mat
-            const Eigen::Ref<const Eigen::MatrixXd> &,  // mat_x1
-            const Eigen::Ref<const Eigen::VectorXb> &,  // vec_grad1_flags
-            const Eigen::Ref<const Eigen::MatrixXd> &   // mat_x2
-        ) const final {
+            const Eigen::Ref<const Eigen::MatrixXd> &,
+            long,
+            const Eigen::Ref<const Eigen::VectorXl> &,
+            const Eigen::Ref<const Eigen::MatrixXd> &,
+            long,
+            Eigen::MatrixXd &) const final {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
     };
