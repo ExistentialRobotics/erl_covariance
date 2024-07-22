@@ -33,7 +33,7 @@ InlineMatern32Gradx1BetweenGradx2(
 }
 
 Eigen::MatrixXd
-matern32_new(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setting, const Eigen::MatrixXd &mat_x, const Eigen::VectorXb &vec_grad_flags) {
+matern32_new(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setting, const Eigen::MatrixXd &mat_x, const Eigen::VectorXl &vec_grad_flags) {
 
     constexpr long dim = 3;
     const long n = mat_x.cols();
@@ -66,7 +66,6 @@ matern32_new(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setti
     k_mat_diag.head(n).array() = alpha;
     k_mat_diag.tail(n_grad * dim).array() = b;
 
-#pragma omp parallel for default(none) shared(n, k_mat, mat_x, mat_x_with_grad, vec_grad_flags, grad_indices, has_grad_indices, n_grad, dim, alpha, a2, a1, b)
     for (long j = 0; j < n; ++j) {
         auto k_mat_col_j = k_mat.col(j);
         k_mat_col_j[j] = alpha;
@@ -77,23 +76,28 @@ matern32_new(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setti
 
         if (const long m = n - j - 1; m > 0) {
             auto diffs_right = diffs.rightCols(m);
-            diffs_right << mat_x.rightCols(m).colwise() - mat_x.col(j);
-
+            // diffs_right.colwise() = -mat_x.col(j);
+            auto mat_x_right_ptr = mat_x.rightCols(m).data();
+            auto diffs_right_ptr = diffs_right.data();
+            auto x_col_j = mat_x.col(j).data();
             auto diff_norms_right = diff_norms.tail(m).data();
-#pragma omp simd
-            for (long i = 0; i < m; ++i) { diff_norms_right[i] = diffs_right.col(i).norm(); }
-            // diff_norms_right << diffs_right.colwise().norm().transpose();
-
             auto exp_terms_right = exp_terms.tail(m).data();
-#pragma omp simd
-            for (long i = 0; i < m; ++i) { exp_terms_right[i] = std::exp(-a2 * diff_norms_right[i]); }
-            // { exp_terms_right << (diff_norms_right.array() * -a2).exp(); }
-
-            // lower triangular part of cov(f_i, f_j)
             auto k_mat_col_j_right = k_mat_col_j.segment(j + 1, m).data();
+
 #pragma omp simd
-            for (long i = 0; i < m; ++i) { k_mat_col_j_right[i] = exp_terms_right[i] * (alpha + a1 * diff_norms_right[i]); }
-            // k_mat_col_j.segment(j + 1, m) = exp_terms_right.array() * (alpha + a1 * diff_norms_right.array());
+            for (long i = 0; i < m; ++i) {
+                double &x = diffs_right_ptr[0];
+                double &y = diffs_right_ptr[1];
+                double &z = diffs_right_ptr[2];
+                x = mat_x_right_ptr[0] - x_col_j[0];
+                y = mat_x_right_ptr[1] - x_col_j[1];
+                z = mat_x_right_ptr[2] - x_col_j[2];
+                diff_norms_right[i] = std::sqrt(x * x + y * y + z * z);
+                exp_terms_right[i] = std::exp(-a2 * diff_norms_right[i]);
+                k_mat_col_j_right[i] = exp_terms_right[i] * (alpha + a1 * diff_norms_right[i]);
+                mat_x_right_ptr += dim;
+                diffs_right_ptr += dim;
+            }
         }
 
         if (n_grad == 0) { continue; }
@@ -170,14 +174,14 @@ matern32_new(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setti
 }
 
 Eigen::MatrixXd
-matern32_new2(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setting, const Eigen::MatrixXd &mat_x, const Eigen::VectorXb &vec_grad_flags) {
+matern32_new2(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setting, const Eigen::MatrixXd &mat_x, const Eigen::VectorXl &vec_grad_flags) {
     const long dim = mat_x.rows();
 
     const long n = mat_x.cols();
     std::vector<long> grad_indices;
     grad_indices.reserve(vec_grad_flags.size());
     long n_grad = 0;
-    for (const bool &flag: vec_grad_flags) {
+    for (const long &flag: vec_grad_flags) {
         if (flag) {
             grad_indices.push_back(n + n_grad++);
         } else {
@@ -192,7 +196,6 @@ matern32_new2(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &sett
     const double a1 = a2 * setting->alpha;
     const double b = a2 * a2 * setting->alpha;
     Eigen::MatrixXd k_mat(n_rows, n_cols);
-#pragma omp parallel for default(none) shared(n, k_mat, mat_x, vec_grad_flags, grad_indices, n_grad, dim, alpha, a2, a1, b)
     for (long j = 0; j < n; ++j) {
         std::vector<double> diff_ij(dim);
         k_mat(j, j) = alpha;
@@ -277,11 +280,10 @@ TEST(Matern32, 3D) {
 
     const auto kernel_setting = std::make_shared<erl::covariance::Matern32_3D::Setting>();
     kernel_setting->x_dim = 3;
-    kernel_setting->parallel = true;
     auto matern32_old = std::make_shared<erl::covariance::Matern32_3D>(kernel_setting);
 
     Eigen::MatrixXd mat_x = erl::common::LoadEigenMatrixFromTextFile<double>(gtest_src_dir / "x_train.txt");
-    Eigen::VectorXb vec_grad_flags = Eigen::VectorXb::Random(mat_x.cols());
+    Eigen::VectorXl vec_grad_flags = Eigen::VectorXb::Random(mat_x.cols()).cast<long>();
     const long num_samples_with_gradient = vec_grad_flags.cast<long>().sum();
 
     auto [rows, cols] = matern32_old->GetMinimumKtrainSize(mat_x.cols(), num_samples_with_gradient, 3);
@@ -291,7 +293,7 @@ TEST(Matern32, 3D) {
     {
         erl::common::BlockTimer<std::chrono::milliseconds> timer("Matern32Old");
         (void) timer;
-        for (long i = 0; i < n_tests; ++i) { (void) matern32_old->ComputeKtrainWithGradient(k_mat1, mat_x, vec_grad_flags); }
+        for (long i = 0; i < n_tests; ++i) { (void) matern32_old->ComputeKtrainWithGradient(mat_x, mat_x.cols(), vec_grad_flags, k_mat1); }
     }
 
     Eigen::MatrixXd k_mat2;

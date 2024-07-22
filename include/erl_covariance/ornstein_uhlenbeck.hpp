@@ -52,8 +52,8 @@ namespace erl::covariance {
                             const double dx = mat_x(k, i) - mat_x(k, j);
                             r += dx * dx;
                         }
-                        r = std::sqrt(r);                                           // (mat_x.col(i) - mat_x.col(j)).norm();
-                        k_mat(i, j) = alpha * std::exp(static_cast<float>(a * r));  // using single precision to improve performance
+                        r = std::sqrt(r);                       // (mat_x.col(i) - mat_x.col(j)).norm();
+                        k_mat(i, j) = alpha * std::exp(a * r);  // using single precision to improve performance
                         k_mat(j, i) = k_mat(i, j);
                     }
                 }
@@ -80,9 +80,9 @@ namespace erl::covariance {
             const double a = -1. / m_setting_->scale;
             const double alpha = m_setting_->alpha;
             for (long j = 0; j < num_samples; ++j) {
-                k_mat(j, j) = alpha + vec_var_y[j];
-                double *k_j_ptr = k_mat.col(j).data();       // use raw pointer to improve performance
+                double *k_mat_j_ptr = k_mat.col(j).data();   // use raw pointer to improve performance
                 const double *xj_ptr = mat_x.col(j).data();  // use raw pointer to improve performance
+                k_mat_j_ptr[j] = alpha + vec_var_y[j];       // k_mat(j, j)
                 for (long i = j + 1; i < num_samples; ++i) {
                     double r = 0.0;
                     const double *xi_ptr = mat_x.col(i).data();  // use raw pointer to improve performance
@@ -90,9 +90,9 @@ namespace erl::covariance {
                         const double dx = xi_ptr[k] - xj_ptr[k];
                         r += dx * dx;
                     }
-                    r = std::sqrt(r);           // (mat_x.col(i) - mat_x.col(j)).norm();
-                    double &k_ij = k_j_ptr[i];  // use reference to improve performance
-                    k_ij = alpha * std::exp(static_cast<float>(a * r));
+                    r = std::sqrt(r);               // (mat_x.col(i) - mat_x.col(j)).norm();
+                    double &k_ij = k_mat_j_ptr[i];  // use reference to improve performance
+                    k_ij = alpha * std::exp(a * r);
                     k_mat(j, i) = k_ij;
                 }
             }
@@ -130,7 +130,7 @@ namespace erl::covariance {
                         r += dx * dx;
                     }
                     r = std::sqrt(r);  // (mat_x1.col(i) - mat_x2.col(j)).norm();
-                    col_j_ptr[i] = alpha * std::exp(static_cast<float>(a * r));
+                    col_j_ptr[i] = alpha * std::exp(a * r);
                 }
             }
             return {num_samples1, num_samples2};

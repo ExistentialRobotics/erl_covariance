@@ -29,6 +29,13 @@ namespace erl::covariance {
         std::shared_ptr<Setting> m_setting_ = nullptr;
 
     public:
+        [[nodiscard]] std::size_t
+        GetMemoryUsage() const {
+            std::size_t memory_usage = sizeof(*this);
+            if (m_setting_ != nullptr) { memory_usage += sizeof(Setting); }
+            return memory_usage;
+        }
+
         //-- factory pattern
         /**
          * returns actual class name as string for identification
@@ -54,7 +61,7 @@ namespace erl::covariance {
         CreateCovariance(const std::string &covariance_type, std::shared_ptr<Setting> setting);
 
         template<typename Derived>
-        static bool
+        static std::enable_if_t<std::is_base_of_v<Covariance, Derived>, bool>
         RegisterCovarianceType(const std::string &covariance_type) {
             if (s_class_id_mapping_.find(covariance_type) != s_class_id_mapping_.end()) {
                 ERL_WARN("{} is already registered.", covariance_type);
