@@ -17,7 +17,21 @@ BindCovariance(const py::module &m) {
         .def_readwrite("scale_mix", &Covariance::Setting::scale_mix)
         .def_readwrite("weights", &Covariance::Setting::weights);
 
-    py_covariance.def_property_readonly("setting", &Covariance::GetSetting)
+    py_covariance.def_property_readonly("type", &Covariance::GetCovarianceType)
+        .def_property_readonly("setting", &Covariance::GetSetting)
+        .def_static(
+            "get_minimum_ktrain_size",
+            &Covariance::GetMinimumKtrainSize,
+            py::arg("num_samples"),
+            py::arg("num_samples_with_gradient"),
+            py::arg("num_gradient_dimensions"))
+        .def_static(
+            "get_minimum_ktest_size",
+            &Covariance::GetMinimumKtestSize,
+            py::arg("num_train_samples"),
+            py::arg("num_train_samples_with_gradient"),
+            py::arg("num_gradient_dimensions"),
+            py::arg("num_test_queries"))
         .def(
             "compute_ktrain",
             [](const Covariance &self, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const long num_samples) -> Eigen::MatrixXd {

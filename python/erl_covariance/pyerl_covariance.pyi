@@ -1,4 +1,3 @@
-from enum import IntEnum
 from typing import overload
 
 import numpy as np
@@ -39,7 +38,20 @@ class Covariance:
 
         def __init__(self: Covariance.Setting): ...
 
+    @staticmethod
+    def get_minimum_ktrain_size(
+        num_samples: int, num_samples_with_gradient: int, num_gradient_dimensions: int
+    ) -> tuple[int, int]: ...
+    @staticmethod
+    def get_minimum_ktest_size(
+        num_train_samples: int,
+        num_train_samples_with_gradient: int,
+        num_gradient_dimensions: int,
+        num_test_queries: int,
+    ) -> tuple[int, int]: ...
     def __init__(self: Covariance, setting: Covariance.Setting): ...
+    @property
+    def type(self: Covariance) -> str: ...
     @property
     def setting(self: Covariance) -> Setting: ...
     @overload
