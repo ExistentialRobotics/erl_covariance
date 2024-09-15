@@ -11,11 +11,15 @@ InlineExpr(const double a, const double *weights, const double *x1, const double
 
 namespace erl::covariance {
     std::pair<long, long>
-    CustomKernelV1::ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const long num_samples, Eigen::MatrixXd &k_mat) const {
+    CustomKernelV1::ComputeKtrain(
+        const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
+        const long num_samples,
+        Eigen::MatrixXd &mat_k,
+        Eigen::VectorXd & /*vec_alpha*/) const {
         ERL_DEBUG_ASSERT(mat_x.rows() == 4, "Each column of mat_x should be 4D vector [x, y, vx, vy].");
         ERL_DEBUG_ASSERT(m_setting_->weights.size() == 2, "Number of weights should be 2. Set GetSetting()->weights at first.");
-        ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
-        ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
+        ERL_DEBUG_ASSERT(mat_k.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", mat_k.rows(), num_samples);
+        ERL_DEBUG_ASSERT(mat_k.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", mat_k.cols(), num_samples);
 
         const double a = 1. / m_setting_->scale;
         const double alpha = m_setting_->alpha;
@@ -23,10 +27,10 @@ namespace erl::covariance {
         for (long i = 0; i < num_samples; ++i) {
             for (long j = i; j < num_samples; ++j) {
                 if (i == j) {
-                    k_mat(i, i) = alpha;
+                    mat_k(i, i) = alpha;
                 } else {
-                    k_mat(i, j) = alpha * InlineExpr(a, weights, mat_x.col(i).data(), mat_x.col(j).data());
-                    k_mat(j, i) = k_mat(i, j);
+                    mat_k(i, j) = alpha * InlineExpr(a, weights, mat_x.col(i).data(), mat_x.col(j).data());
+                    mat_k(j, i) = mat_k(i, j);
                 }
             }
         }
@@ -38,7 +42,8 @@ namespace erl::covariance {
         const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
         const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
         const long num_samples,
-        Eigen::MatrixXd &k_mat) const {
+        Eigen::MatrixXd &k_mat,
+        Eigen::VectorXd & /*vec_alpha*/) const {
         ERL_DEBUG_ASSERT(mat_x.rows() == 4, "Each column of mat_x should be 4D vector [x, y, vx, vy].");
         ERL_DEBUG_ASSERT(m_setting_->weights.size() == 2, "Number of weights should be 2. Set GetSetting()->weights at first.");
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
@@ -84,7 +89,7 @@ namespace erl::covariance {
     }
 
     std::pair<long, long>
-    CustomKernelV1::ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &, long, Eigen::VectorXl &, Eigen::MatrixXd &) const {
+    CustomKernelV1::ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &, long, Eigen::VectorXl &, Eigen::MatrixXd &, Eigen::VectorXd &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 
@@ -96,7 +101,8 @@ namespace erl::covariance {
         const Eigen::Ref<const Eigen::VectorXd> &,
         const Eigen::Ref<const Eigen::VectorXd> &,
         const Eigen::Ref<const Eigen::VectorXd> &,
-        Eigen::MatrixXd &) const {
+        Eigen::MatrixXd &,
+        Eigen::VectorXd &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 

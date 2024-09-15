@@ -9,12 +9,6 @@ namespace erl::covariance {
     class CustomKernelV3 : public Covariance {
 
     public:
-        [[nodiscard]] std::shared_ptr<Covariance>
-        Create(std::shared_ptr<Setting> setting) const override {
-            if (setting == nullptr) { setting = std::make_shared<Setting>(); }
-            return std::make_shared<CustomKernelV3>(std::move(setting));
-        }
-
         explicit CustomKernelV3(std::shared_ptr<Setting> setting)
             : Covariance(std::move(setting)) {
             if (m_setting_->weights.size() == 0) { m_setting_->weights.setOnes(2); }
@@ -27,14 +21,15 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, long num_samples, Eigen::MatrixXd &k_mat) const final;
+        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, long num_samples, Eigen::MatrixXd &mat_k, Eigen::VectorXd &vec_alpha) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
             long num_samples,
-            Eigen::MatrixXd &k_mat) const final;
+            Eigen::MatrixXd &mat_k,
+            Eigen::VectorXd &vec_alpha) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtest(
@@ -42,11 +37,15 @@ namespace erl::covariance {
             long num_samples1,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
             long num_samples2,
-            Eigen::MatrixXd &k_mat) const final;
+            Eigen::MatrixXd &mat_k) const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, Eigen::MatrixXd &k_mat)
-            const final;
+        ComputeKtrainWithGradient(
+            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
+            long num_samples,
+            Eigen::VectorXl &vec_grad_flags,
+            Eigen::MatrixXd &mat_k,
+            Eigen::VectorXd &vec_alpha) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
@@ -56,7 +55,8 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_x,
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad,
-            Eigen::MatrixXd &k_mat) const final;
+            Eigen::MatrixXd &mat_k,
+            Eigen::VectorXd &vec_alpha) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(
@@ -65,7 +65,7 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
             long num_samples2,
-            Eigen::MatrixXd &k_mat) const final;
+            Eigen::MatrixXd &mat_k) const override;
     };
 
     ERL_REGISTER_COVARIANCE(CustomKernelV3);

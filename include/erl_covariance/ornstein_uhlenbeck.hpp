@@ -12,12 +12,6 @@ namespace erl::covariance {
         // ref2: https://www.cs.cmu.edu/~epxing/Class/10708-15/notes/10708_scribe_lecture21.pdf
 
     public:
-        [[nodiscard]] std::shared_ptr<Covariance>
-        Create(std::shared_ptr<Setting> setting) const override {
-            if (setting == nullptr) { setting = std::make_shared<Setting>(); }
-            return std::make_shared<OrnsteinUhlenbeck>(std::move(setting));
-        }
-
         explicit OrnsteinUhlenbeck(std::shared_ptr<Setting> setting)
             : Covariance(std::move(setting)) {
             if (Dim != Eigen::Dynamic) { m_setting_->x_dim = Dim; }  // set x_dim
@@ -30,7 +24,8 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const long num_samples, Eigen::MatrixXd &k_mat) const final {
+        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const long num_samples, Eigen::MatrixXd &k_mat, Eigen::VectorXd & /*vec_y*/)
+            const override {
             ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
             ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
             long dim;
@@ -66,7 +61,8 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
             const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
             const long num_samples,
-            Eigen::MatrixXd &k_mat) const final {
+            Eigen::MatrixXd &k_mat,
+            Eigen::VectorXd & /*vec_y*/) const override {
             ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
             ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
             ERL_DEBUG_ASSERT(vec_var_y.size() >= num_samples, "vec_var_y does not have enough elements, it should be >= {}.", num_samples);
@@ -105,7 +101,7 @@ namespace erl::covariance {
             const long num_samples1,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
             const long num_samples2,
-            Eigen::MatrixXd &k_mat) const final {
+            Eigen::MatrixXd &k_mat) const override {
 
             ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x_1 and x_2 should have the same dimension.");
             ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples1, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples1);
@@ -137,7 +133,7 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &, long, Eigen::VectorXl &, Eigen::MatrixXd &) const final {
+        ComputeKtrainWithGradient(const Eigen::Ref<const Eigen::MatrixXd> &, long, Eigen::VectorXl &, Eigen::MatrixXd &, Eigen::VectorXd &) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
 
@@ -149,7 +145,8 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXd> &,
             const Eigen::Ref<const Eigen::VectorXd> &,
             const Eigen::Ref<const Eigen::VectorXd> &,
-            Eigen::MatrixXd &) const final {
+            Eigen::MatrixXd &,
+            Eigen::VectorXd &) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
 
@@ -160,7 +157,7 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXl> &,
             const Eigen::Ref<const Eigen::MatrixXd> &,
             long,
-            Eigen::MatrixXd &) const final {
+            Eigen::MatrixXd &) const override {
             throw NotImplemented(__PRETTY_FUNCTION__);
         }
     };
