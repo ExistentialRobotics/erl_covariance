@@ -65,6 +65,7 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
             long num_samples2,
+            bool predict_gradient,
             Eigen::MatrixXd &mat_k) const override;
     };
 

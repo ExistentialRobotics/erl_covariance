@@ -92,9 +92,10 @@ namespace erl::covariance {
             const long /*num_train_samples*/,
             const long /*num_train_samples_with_gradient*/,
             const long num_gradient_dimensions,
-            const long num_test_queries) const override {
+            const long num_test_queries,
+            const bool predict_gradient) const override {
             long e = m_setting_->num_basis.prod();
-            return {e, num_test_queries * (1 + num_gradient_dimensions)};
+            return {e, predict_gradient ? num_test_queries * (1 + num_gradient_dimensions) : num_test_queries};
         }
 
         std::pair<long, long>
@@ -142,12 +143,18 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
             long num_samples2,
+            bool predict_gradient,
             Eigen::MatrixXd &mat_k) const override;
 
         void
-        BuildSpectralDensities() const {
+        BuildSpectralDensities() {
             m_setting_->BuildSpectralDensities(
                 [this](const Eigen::VectorXd &freq_squared_norm) -> Eigen::VectorXd { return ComputeSpectralDensities(freq_squared_norm); });
+            const long e = m_setting_->num_basis.prod();
+            if (m_setting_->accumulated) {
+                if (m_mat_k_.size() == 0) { m_mat_k_ = Eigen::MatrixXd::Zero(e, e); }
+                if (m_vec_alpha_.size() == 0) { m_vec_alpha_ = Eigen::VectorXd::Zero(e); }
+            }
         }
 
         [[nodiscard]] virtual Eigen::VectorXd
@@ -165,7 +172,7 @@ namespace erl::covariance {
         }
 
         void
-        SetCoordOrigin(const Eigen::Ref<const Eigen::VectorXd> &coord_origin) {
+        SetCoordOrigin(const Eigen::VectorXd &coord_origin) {
             m_coord_origin_ = coord_origin;
         }
 
@@ -188,6 +195,26 @@ namespace erl::covariance {
         GetAlphaBuffer() {
             return m_vec_alpha_;
         }
+
+        [[nodiscard]] bool
+        operator==(const ReducedRankCovariance &other) const;
+
+        [[nodiscard]] bool
+        operator!=(const ReducedRankCovariance &other) const {
+            return !(*this == other);
+        }
+
+        [[nodiscard]] bool
+        Write(const std::string &filename) const override;
+
+        [[nodiscard]] bool
+        Write(std::ostream &s) const override;
+
+        [[nodiscard]] bool
+        Read(const std::string &filename) override;
+
+        [[nodiscard]] bool
+        Read(std::istream &s) override;
     };
 
 }  // namespace erl::covariance

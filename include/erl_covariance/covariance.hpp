@@ -99,8 +99,11 @@ namespace erl::covariance {
             const long num_train_samples,
             const long num_train_samples_with_gradient,
             const long num_gradient_dimensions,
-            const long num_test_queries) const {
-            return {num_train_samples + num_train_samples_with_gradient * num_gradient_dimensions, num_test_queries * (1 + num_gradient_dimensions)};
+            const long num_test_queries,
+            const bool predict_gradient) const {
+            return {
+                num_train_samples + num_train_samples_with_gradient * num_gradient_dimensions,
+                predict_gradient ? num_test_queries * (1 + num_gradient_dimensions) : num_test_queries};
         }
 
         [[nodiscard]] virtual std::pair<long, long>
@@ -158,7 +161,28 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
             long num_samples2,
+            bool predict_gradient,
             Eigen::MatrixXd &mat_k) const = 0;
+
+        [[nodiscard]] bool
+        operator==(const Covariance &other) const;
+
+        [[nodiscard]] bool
+        operator!=(const Covariance &other) const {
+            return !(*this == other);
+        }
+
+        [[nodiscard]] virtual bool
+        Write(const std::string &filename) const;
+
+        [[nodiscard]] virtual bool
+        Write(std::ostream &s) const;
+
+        [[nodiscard]] virtual bool
+        Read(const std::string &filename);
+
+        [[nodiscard]] virtual bool
+        Read(std::istream &s);
 
     protected:
         explicit Covariance(std::shared_ptr<Setting> setting)

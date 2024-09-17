@@ -113,6 +113,7 @@ namespace erl::covariance {
         const Eigen::Ref<const Eigen::VectorXl> &,
         const Eigen::Ref<const Eigen::MatrixXd> &,
         long,
+        bool,
         Eigen::MatrixXd &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }

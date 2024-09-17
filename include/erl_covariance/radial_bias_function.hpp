@@ -367,6 +367,7 @@ namespace erl::covariance {
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
             const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
             const long num_samples2,
+            const bool predict_gradient,
             Eigen::MatrixXd &mat_k) const override {
 
             long dim;
@@ -380,7 +381,7 @@ namespace erl::covariance {
             ERL_DEBUG_ASSERT(mat_x2.rows() == dim, "Each column of mat_x2 should be {}-D vector.", dim);
             const long n_grad = vec_grad1_flags.head(num_samples1).count();
             const long n_rows = num_samples1 + n_grad * dim;
-            const long n_cols = num_samples2 * (dim + 1);
+            const long n_cols = predict_gradient ? num_samples2 * (dim + 1) : num_samples2;
             ERL_DEBUG_ASSERT(mat_k.rows() >= n_rows, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), n_rows);
             ERL_DEBUG_ASSERT(mat_k.cols() >= n_cols, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), n_cols);
 
@@ -392,12 +393,14 @@ namespace erl::covariance {
             Eigen::Vector<double *, Dim> mat_k_kj_ptrs;  // avoid memory allocation on the heap
             if constexpr (Dim == Eigen::Dynamic) {
                 diff_ij.resize(dim);
-                mat_k_kj_ptrs.resize(dim);
+                if (predict_gradient) { mat_k_kj_ptrs.resize(dim); }
             }
             for (long j = 0; j < num_samples2; ++j) {
                 const double *x2_j_ptr = mat_x2.col(j).data();
                 double *mat_k_j_ptr = mat_k.col(j).data();
-                for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) { mat_k_kj_ptrs[k] = mat_k.col(kj).data(); }
+                if (predict_gradient) {
+                    for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) { mat_k_kj_ptrs[k] = mat_k.col(kj).data(); }
+                }
 
                 for (long i = 0, ki_init = num_samples1; i < num_samples1; ++i) {
                     const double *x1_i_ptr = mat_x1.col(i).data();
@@ -407,28 +410,34 @@ namespace erl::covariance {
                         dx = x1_i_ptr[k] - x2_j_ptr[k];
                         r2 += dx * dx;
                     }
-                    double &k_ij = mat_k_j_ptr[i];                                               // mat_k(i, j)
-                    k_ij = alpha * std::exp(-a * r2);                                            // cov(f1_i, f2_j)
-                    for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) {  // cov(f1_i, df2_j)
-                        mat_k_kj_ptrs[k][i] = l2_inv * k_ij * diff_ij[k];
+                    double &k_ij = mat_k_j_ptr[i];     // mat_k(i, j)
+                    k_ij = alpha * std::exp(-a * r2);  // cov(f1_i, f2_j)
+                    if (predict_gradient) {
+                        for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) {  // cov(f1_i, df2_j)
+                            mat_k_kj_ptrs[k][i] = l2_inv * k_ij * diff_ij[k];
+                        }
                     }
 
                     if (!vec_grad1_flags[i]) { continue; }
-                    for (long k = 0, ki = ki_init, kj = j + num_samples2; k < dim; ++k, ki += n_grad, kj += num_samples2) {
-                        mat_k_j_ptr[ki] = -mat_k_kj_ptrs[k][i];
+                    if (predict_gradient) {
+                        for (long k = 0, ki = ki_init, kj = j + num_samples2; k < dim; ++k, ki += n_grad, kj += num_samples2) {
+                            mat_k_j_ptr[ki] = -mat_k_kj_ptrs[k][i];
 
-                        // between Dim-k and Dim-k
-                        const double &dxk = diff_ij[k];
-                        // mat_k(ki, kj) = cov(df1_i/dx_k, df2_j/dx_k)
-                        mat_k_kj_ptrs[k][ki] = l2_inv * k_ij * (1.0 - l2_inv * dxk * dxk);
+                            // between Dim-k and Dim-k
+                            const double &dxk = diff_ij[k];
+                            // mat_k(ki, kj) = cov(df1_i/dx_k, df2_j/dx_k)
+                            mat_k_kj_ptrs[k][ki] = l2_inv * k_ij * (1.0 - l2_inv * dxk * dxk);
 
-                        for (long l = k + 1, li = ki + n_grad, lj = kj + num_samples2; l < dim; ++l, li += n_grad, lj += num_samples2) {
-                            // between Dim-k and Dim-l
-                            const double &dxl = diff_ij[l];
-                            double &k_ki_lj = mat_k_kj_ptrs[l][li];
-                            k_ki_lj = l2_inv * k_ij * (-l2_inv * dxk * dxl);  // cov(df1_i, df2_j)
-                            mat_k_kj_ptrs[k][li] = k_ki_lj;
+                            for (long l = k + 1, li = ki + n_grad, lj = kj + num_samples2; l < dim; ++l, li += n_grad, lj += num_samples2) {
+                                // between Dim-k and Dim-l
+                                const double &dxl = diff_ij[l];
+                                double &k_ki_lj = mat_k_kj_ptrs[l][li];
+                                k_ki_lj = l2_inv * k_ij * (-l2_inv * dxk * dxl);  // cov(df1_i, df2_j)
+                                mat_k_kj_ptrs[k][li] = k_ki_lj;
+                            }
                         }
+                    } else {
+                        for (long k = 0, ki = ki_init; k < dim; ++k, ki += n_grad) { mat_k_j_ptr[ki] = -l2_inv * k_ij * diff_ij[k]; }
                     }
                     ++ki_init;
                 }

@@ -7,8 +7,6 @@ namespace erl::covariance {
     template<long Dim>
     class ReducedRankMatern32 : public ReducedRankCovariance {
     public:
-        using Setting = ReducedRankCovariance::Setting;
-
         explicit ReducedRankMatern32(std::shared_ptr<Setting> setting)
             : ReducedRankCovariance(std::move(setting)) {}
 
