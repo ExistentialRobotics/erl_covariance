@@ -56,12 +56,16 @@ class Covariance:
     def setting(self: Covariance) -> Setting: ...
     @overload
     def compute_ktrain(
-        self: Covariance, mat_x: npt.NDArray[np.float64], num_samples: int
-    ) -> npt.NDArray[np.float64]: ...
+        self: Covariance, mat_x: npt.NDArray[np.float64], num_samples: int, alpha_vec: npt.NDArray[np.float64]
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
     @overload
     def compute_ktrain(
-        self: Covariance, mat_x: npt.NDArray[np.float64], vec_var_y: npt.NDArray[np.float64], num_samples: int
-    ) -> npt.NDArray[np.float64]: ...
+        self: Covariance,
+        mat_x: npt.NDArray[np.float64],
+        vec_var_y: npt.NDArray[np.float64],
+        num_samples: int,
+        alpha_vec: npt.NDArray[np.float64],
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
     def compute_ktest(
         self: Covariance,
         mat_x1: npt.NDArray[np.float64],
@@ -71,8 +75,12 @@ class Covariance:
     ) -> npt.NDArray[np.float64]: ...
     @overload
     def compute_ktrain_with_gradient(
-        self: Covariance, mat_x: npt.NDArray[np.float64], num_samples: int, vec_grad_flags: npt.NDArray[np.bool_]
-    ) -> npt.NDArray[np.float64]: ...
+        self: Covariance,
+        mat_x: npt.NDArray[np.float64],
+        num_samples: int,
+        vec_grad_flags: npt.NDArray[np.bool_],
+        alpha_vec: npt.NDArray[np.float64],
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
     @overload
     def compute_ktrain_with_gradient(
         self: Covariance,
@@ -82,7 +90,8 @@ class Covariance:
         vec_var_x: npt.NDArray[np.float64],
         vec_var_y: npt.NDArray[np.float64],
         vec_var_grad: npt.NDArray[np.float64],
-    ) -> npt.NDArray[np.float64]: ...
+        alpha_vec: npt.NDArray[np.float64],
+    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
     def compute_ktest_with_gradient(
         self: Covariance,
         mat_x1: npt.NDArray[np.float64],
@@ -90,6 +99,7 @@ class Covariance:
         vec_grad1_flags: npt.NDArray[np.bool_],
         mat_x2: npt.NDArray[np.float64],
         num_samples2: int,
+        predict_gradient: bool,
     ) -> npt.NDArray[np.float64]: ...
 
 class OrnsteinUhlenbeck_1D(Covariance):
