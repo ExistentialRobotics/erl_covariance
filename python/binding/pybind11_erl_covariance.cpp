@@ -19,24 +19,25 @@ BindCovariance(const py::module &m) {
 
     py_covariance.def_property_readonly("type", &Covariance::GetCovarianceType)
         .def_property_readonly("setting", &Covariance::GetSetting)
-        .def_static(
+        .def(
             "get_minimum_ktrain_size",
             &Covariance::GetMinimumKtrainSize,
             py::arg("num_samples"),
             py::arg("num_samples_with_gradient"),
             py::arg("num_gradient_dimensions"))
-        .def_static(
+        .def(
             "get_minimum_ktest_size",
             &Covariance::GetMinimumKtestSize,
             py::arg("num_train_samples"),
             py::arg("num_train_samples_with_gradient"),
             py::arg("num_gradient_dimensions"),
-            py::arg("num_test_queries"))
+            py::arg("num_test_queries"),
+            py::arg("predict_gradient"))
         .def(
             "compute_ktrain",
             [](const Covariance &self, const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const long num_samples, Eigen::VectorXd alpha_vec) {
                 const long n = mat_x.cols();
-                if (n == 0) { return {}; }
+                if (n == 0) { return py::make_tuple(py::none(), py::none()); }
                 const auto [rows, cols] = self.GetMinimumKtrainSize(n, 0, 0);
                 Eigen::MatrixXd k_mat(rows, cols);
                 ERL_ASSERTM(alpha_vec.size() == cols, "alpha_vec has wrong size.");
@@ -54,7 +55,7 @@ BindCovariance(const py::module &m) {
                const long num_samples,
                Eigen::VectorXd alpha_vec) {
                 const long n = mat_x.cols();
-                if (n == 0) { return {}; }
+                if (n == 0) { return py::make_tuple(py::none(), py::none()); }
                 const auto [rows, cols] = self.GetMinimumKtrainSize(n, 0, 0);
                 Eigen::MatrixXd k_mat(rows, cols);
                 ERL_ASSERTM(alpha_vec.size() == cols, "alpha_vec has wrong size. It should be {}.", cols);
@@ -92,7 +93,7 @@ BindCovariance(const py::module &m) {
                Eigen::VectorXl vec_grad_flags,
                Eigen::VectorXd alpha_vec) {
                 const long n = mat_x.cols();
-                if (n == 0) { return {}; }
+                if (n == 0) { return py::make_tuple(py::none(), py::none()); }
                 const long dim = mat_x.rows();
                 const long n_grad = vec_grad_flags.cast<long>().sum();
                 const auto [rows, cols] = self.GetMinimumKtrainSize(n, n_grad, dim);
@@ -116,7 +117,7 @@ BindCovariance(const py::module &m) {
                const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad,
                Eigen::VectorXd alpha_vec) {
                 const long n = mat_x.cols();
-                if (n == 0) { return {}; }
+                if (n == 0) { return py::make_tuple(py::none(), py::none()); }
                 const long dim = mat_x.rows();
                 const long n_grad = vec_grad_flags.cast<long>().sum();
                 const auto [rows, cols] = self.GetMinimumKtrainSize(n, n_grad, dim);
