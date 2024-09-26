@@ -31,7 +31,17 @@ namespace erl::covariance {
                 m_frequencies_.row(i) << frequencies.reshaped(total_size, 1).transpose();
             }
 
-            const Eigen::VectorXd freq_squared_norm = m_frequencies_.colwise().squaredNorm();
+            Eigen::VectorXd freq_squared_norm = m_frequencies_.colwise().squaredNorm();
+            if (max_num_basis > 0 && max_num_basis < freq_squared_norm.size()) {
+                std::vector<long> indices(freq_squared_norm.size());
+                std::iota(indices.begin(), indices.end(), 0);
+                std::sort(indices.begin(), indices.end(), [&freq_squared_norm](long i, long j) { return freq_squared_norm[i] < freq_squared_norm[j]; });
+                indices.resize(max_num_basis);
+                Eigen::VectorXd freq_squared_norm_new = freq_squared_norm(indices);
+                Eigen::MatrixXd freqeuencies_new = m_frequencies_(Eigen::indexing::all, indices);
+                m_frequencies_.swap(freqeuencies_new);
+                freq_squared_norm.swap(freq_squared_norm_new);
+            }
             m_spectral_densities_ = kernel_spectral_density_func(freq_squared_norm);
             m_inv_spectral_densities_ = m_spectral_densities_.cwiseInverse();
 

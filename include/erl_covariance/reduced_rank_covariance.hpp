@@ -15,6 +15,7 @@ namespace erl::covariance {
 
     public:
         struct Setting : public common::Yamlable<Setting, Covariance::Setting> {
+            long max_num_basis = -1;     // maximum number of basis functions per dimension, -1 means no limit
             Eigen::VectorXl num_basis;   // number of basis functions per dimension
             Eigen::VectorXd boundaries;  // boundaries for the basis functions per dimension
             bool accumulated = true;     // whether to accumulate the kernel matrix or not
@@ -224,6 +225,7 @@ struct YAML::convert<erl::covariance::ReducedRankCovariance::Setting> {
     static Node
     encode(const erl::covariance::ReducedRankCovariance::Setting &setting) {
         Node node = convert<erl::covariance::Covariance::Setting>::encode(setting);
+        node["max_num_basis"] = setting.max_num_basis;
         node["num_basis"] = setting.num_basis;
         node["boundaries"] = setting.boundaries;
         node["accumulated"] = setting.accumulated;
@@ -233,6 +235,7 @@ struct YAML::convert<erl::covariance::ReducedRankCovariance::Setting> {
     static bool
     decode(const Node &node, erl::covariance::ReducedRankCovariance::Setting &setting) {
         if (!convert<erl::covariance::Covariance::Setting>::decode(node, setting)) { return false; }
+        setting.max_num_basis = node["max_num_basis"].as<long>();
         setting.num_basis = node["num_basis"].as<Eigen::VectorXl>();
         setting.boundaries = node["boundaries"].as<Eigen::VectorXd>();
         setting.accumulated = node["accumulated"].as<bool>();
