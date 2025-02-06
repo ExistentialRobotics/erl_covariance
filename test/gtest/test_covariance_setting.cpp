@@ -19,7 +19,7 @@ TEST(CovarianceSettingTest, FromYamlString) {
 
     std::cout << setting << std::endl;
 
-    setting.FromYamlString(R"(
+    ASSERT_TRUE(setting.FromYamlString(R"(
 type: kMatern32
 x_dim: 2
 parallel: true
@@ -27,7 +27,7 @@ alpha: 2.0
 scale: 3.0
 scale_mix: 0.5
 weights: [1.0, 2.0, 3.0, 4.0]
-)");
+)"));
 
     std::cout << setting << std::endl;
     ASSERT_EQ(setting.x_dim, 2);
