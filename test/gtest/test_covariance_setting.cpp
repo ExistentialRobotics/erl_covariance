@@ -5,7 +5,7 @@
 using namespace erl::covariance;
 
 TEST(CovarianceSettingTest, FromYamlString) {
-    Covariance::Setting setting;
+    Covariance<double>::Setting setting;
     setting.weights = Eigen::Vector2d{1., 2.};
     ASSERT_EQ(setting.x_dim, 2);
     ASSERT_EQ(setting.alpha, 1.);

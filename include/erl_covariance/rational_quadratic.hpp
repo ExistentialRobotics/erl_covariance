@@ -3,470 +3,79 @@
 #include "covariance.hpp"
 
 namespace erl::covariance {
-    static double
-    InlineRq(const double a, const double b, const double squared_norm) {
-        return std::pow(1 + squared_norm * a, -b);
-    }
 
-    template<long Dim>
-    class RationalQuadratic : public Covariance {
+    template<int Dim, typename Dtype>
+    class RationalQuadratic : public Covariance<Dtype> {
         // ref: https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RationalQuadratic.html
     public:
+        using Super = Covariance<Dtype>;
+        using Setting = typename Super::Setting;
+        using Matrix = typename Super::Matrix;
+        using Vector = typename Super::Vector;
+
         explicit RationalQuadratic(std::shared_ptr<Setting> setting)
-            : Covariance(std::move(setting)) {
-            ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
+            : Super(std::move(setting)) {
+            ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || Super::m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
             ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
-            m_setting_->x_dim = Dim;
+            Super::m_setting_->x_dim = Dim;
         }
 
         [[nodiscard]] std::string
         GetCovarianceType() const override {
-            if (Dim == Eigen::Dynamic) { return "RadialBiasFunction_Xd"; }
-            return "RationalQuadratic_" + std::to_string(Dim) + "D";
+            return type_name<RationalQuadratic>();
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, const long num_samples, Eigen::MatrixXd &k_mat, Eigen::VectorXd & /*vec_alpha*/)
-            const override {
-            ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
-            long dim;
-            if constexpr (Dim == Eigen::Dynamic) {
-                dim = mat_x.rows();
-            } else {
-                dim = Dim;
-            }
-            const double alpha = m_setting_->alpha;
-            const double scale_mix = m_setting_->scale_mix;
-            const double a = 0.5 / (m_setting_->scale * m_setting_->scale * scale_mix);
-            const long stride = k_mat.outerStride();
-            for (long j = 0; j < num_samples; ++j) {
-                double *k_mat_j_ptr = k_mat.col(j).data();   // use raw pointer to improve performance
-                const double *xj_ptr = mat_x.col(j).data();  // use raw pointer to improve performance
-                k_mat_j_ptr[j] = alpha;                      // k_mat(j, j)
-                if (j + 1 >= num_samples) { continue; }
-                double *k_ji_ptr = &k_mat(j, j + 1);  // k_mat(j, i)
-                for (long i = j + 1; i < num_samples; ++i, k_ji_ptr += stride) {
-                    const double *xi_ptr = mat_x.col(i).data();
-                    double r = 0.0;
-                    for (long k = 0; k < dim; ++k) {
-                        const double dx = xi_ptr[k] - xj_ptr[k];
-                        r += dx * dx;
-                    }
-                    double &k_ij = k_mat_j_ptr[i];
-                    k_ij = alpha * InlineRq(a, scale_mix, r);  // k_mat(i, j)
-                    *k_ji_ptr = k_ij;                          // k_mat(j, i) = k_ij;
-                }
-            }
-            return {num_samples, num_samples};
-        }
+        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, long num_samples, Matrix &k_mat, Vector & /*vec_alpha*/) const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
-            const long num_samples,
-            Eigen::MatrixXd &k_mat,
-            Eigen::VectorXd & /*vec_alpha*/) const override {
-            ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
-            long dim;
-            if constexpr (Dim == Eigen::Dynamic) {
-                dim = mat_x.rows();
-            } else {
-                dim = Dim;
-            }
-            const double alpha = m_setting_->alpha;
-            const double scale_mix = m_setting_->scale_mix;
-            const double a = 0.5 / (m_setting_->scale * m_setting_->scale * scale_mix);
-            const long stride = k_mat.outerStride();
-            for (long j = 0; j < num_samples; ++j) {
-                double *k_mat_j_ptr = k_mat.col(j).data();   // use raw pointer to improve performance
-                const double *xj_ptr = mat_x.col(j).data();  // use raw pointer to improve performance
-                k_mat_j_ptr[j] = alpha + vec_var_y[j];       // k_mat(j, j)
-                if (j + 1 >= num_samples) { continue; }
-                double *k_ji_ptr = &k_mat(j, j + 1);  // k_mat(j, i)
-                for (long i = j + 1; i < num_samples; ++i, k_ji_ptr += stride) {
-                    const double *xi_ptr = mat_x.col(i).data();
-                    double r = 0.0;
-                    for (long k = 0; k < dim; ++k) {
-                        const double dx = xi_ptr[k] - xj_ptr[k];
-                        r += dx * dx;
-                    }
-                    double &k_ij = k_mat_j_ptr[i];  // k_mat(i, j)
-                    k_ij = alpha * InlineRq(a, scale_mix, r);
-                    *k_ji_ptr = k_ij;  // k_mat(j, i) = k_ij;
-                }
-            }
-            return {num_samples, num_samples};
-        }
+        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, const Eigen::Ref<const Vector> &vec_var_y, long num_samples, Matrix &k_mat, Vector & /*vec_alpha*/)
+            const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtest(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
-            const long num_samples1,
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
-            const long num_samples2,
-            Eigen::MatrixXd &k_mat) const override {
-            ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x1 and x2 should have the same dimension.");
-            ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples1, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples1);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples2, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples2);
-            long dim;
-            if constexpr (Dim == Eigen::Dynamic) {
-                dim = mat_x1.rows();
-            } else {
-                dim = Dim;
-            }
-            const double alpha = m_setting_->alpha;
-            const double scale_mix = m_setting_->scale_mix;
-            const double a = 0.5 / (m_setting_->scale * m_setting_->scale * scale_mix);
-            for (long j = 0; j < num_samples2; ++j) {
-                const double *x2_ptr = mat_x2.col(j).data();
-                double *col_j_ptr = k_mat.col(j).data();
-                for (long i = 0; i < num_samples1; ++i) {
-                    const double *x1_ptr = mat_x1.col(i).data();
-                    double r = 0.0;
-                    for (long k = 0; k < dim; ++k) {
-                        const double dx = x1_ptr[k] - x2_ptr[k];
-                        r += dx * dx;
-                    }
-                    col_j_ptr[i] = alpha * InlineRq(a, scale_mix, r);
-                }
-            }
-            return {num_samples1, num_samples2};
-        }
+        ComputeKtest(const Eigen::Ref<const Matrix> &mat_x1, long num_samples1, const Eigen::Ref<const Matrix> &mat_x2, long num_samples2, Matrix &k_mat)
+            const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-            const long num_samples,
+            const Eigen::Ref<const Matrix> &mat_x,
+            long num_samples,
             Eigen::VectorXl &vec_grad_flags,
-            Eigen::MatrixXd &k_mat,
-            Eigen::VectorXd & /*vec_alpha*/) const override {
-
-            long dim;
-            if constexpr (Dim == Eigen::Dynamic) {
-                dim = mat_x.rows();
-            } else {
-                dim = Dim;
-            }
-
-            ERL_DEBUG_ASSERT(mat_x.rows() == dim, "Each column of mat_x should be {}-D vector.", dim);
-            long n_grad = 0;
-            long *grad_flags = vec_grad_flags.data();
-            for (long i = 0; i < num_samples; ++i) {
-                if (long &flag = grad_flags[i]; flag > 0) { flag = num_samples + n_grad++; }
-            }
-            long n_rows = num_samples + n_grad * dim;
-            long n_cols = n_rows;
-            ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
-
-            const double alpha = m_setting_->alpha;
-            const double scale_mix = m_setting_->scale_mix;
-            const double l2_inv = 1. / (m_setting_->scale * m_setting_->scale);
-            const double a = 0.5 * l2_inv / scale_mix;
-            // buffer to store the difference between x1_i and x2_j
-            Eigen::Vector<double, Dim> diff_ij;          // avoid memory allocation on the heap
-            Eigen::Vector<double *, Dim> k_mat_kj_ptrs;  // avoid memory allocation on the heap
-            Eigen::Vector<double *, Dim> k_mat_ki_ptrs;  // avoid memory allocation on the heap
-            if constexpr (Dim == Eigen::Dynamic) {
-                diff_ij.resize(dim);
-                k_mat_kj_ptrs.resize(dim);
-                k_mat_ki_ptrs.resize(dim);
-            }
-            for (long j = 0; j < num_samples; ++j) {
-                double *k_mat_j_ptr = k_mat.col(j).data();
-                k_mat_j_ptr[j] = alpha;  // k_mat(j, j)
-                if (grad_flags[j]) {
-                    for (long k = 0, kj = grad_flags[j]; k < dim; ++k, kj += n_grad) { k_mat_kj_ptrs[k] = k_mat.col(kj).data(); }
-
-                    for (long k = 0, kj = grad_flags[j]; k < dim; ++k, kj += n_grad) {
-                        k_mat_kj_ptrs[k][kj] = l2_inv;  // k_mat(kj, kj) = cov(df_j/dx_k, f_j)
-                        k_mat_kj_ptrs[k][j] = 0.0;      // k_mat(j, kj) = cov(df_j/dx_k, f_j)
-                        k_mat_j_ptr[kj] = 0.0;          // k_mat(kj, j) = cov(df_j/dx_k, f_j)
-                        for (long l = k + 1, lj = kj + n_grad; l < dim; ++l, lj += n_grad) {
-                            k_mat_kj_ptrs[l][kj] = 0.0;  // k_mat(kj, lj) = cov(df_j/dx_k, df_j/dx_l)
-                            k_mat_kj_ptrs[k][lj] = 0.0;  // k_mat(lj, kj) = cov(df_j/dx_l, df_j/dx_k)
-                        }
-                    }
-                }
-
-                const double *xj_ptr = mat_x.col(j).data();
-                for (long i = j + 1; i < num_samples; ++i) {
-                    const double *xi_ptr = mat_x.col(i).data();
-                    double *k_mat_i_ptr = k_mat.col(i).data();
-                    double r = 0;
-                    for (long k = 0; k < dim; ++k) {
-                        double &dx = diff_ij[k];
-                        dx = xi_ptr[k] - xj_ptr[k];
-                        r += dx * dx;
-                    }
-                    double &k_ij = k_mat_j_ptr[i];             // k_mat(i, j)
-                    k_ij = alpha * InlineRq(a, scale_mix, r);  // cov(f_i, f_j)
-                    k_mat_i_ptr[j] = k_ij;
-
-                    if (const double beta = 1. / (1. + a * r), gamma = beta * beta * l2_inv * (1. + scale_mix) / scale_mix; grad_flags[j]) {
-                        // cov(df_j, f_i) = cov(f_i, df_j)
-                        for (long k = 0, kj = grad_flags[j]; k < dim; ++k, kj += n_grad) {
-                            double &k_i_kj = k_mat_kj_ptrs[k][i];        // k_mat(i, kj)
-                            k_i_kj = beta * l2_inv * diff_ij[k] * k_ij;  // cov(f_i, df_j/dx_k)
-                            k_mat_i_ptr[kj] = k_i_kj;                    // k_mat(kj, i) = cov(df_j/dx_k, f_i)
-                        }
-
-                        if (grad_flags[i]) {
-                            for (long k = 0, ki = grad_flags[i]; k < dim; ++k, ki += n_grad) { k_mat_ki_ptrs[k] = k_mat.col(ki).data(); }
-
-                            for (long k = 0, ki = grad_flags[i], kj = grad_flags[j]; k < dim; ++k, ki += n_grad, kj += n_grad) {
-                                double &k_ki_j = k_mat_j_ptr[ki];  // k_mat(ki, j), use reference to improve performance
-                                k_ki_j = -k_mat_kj_ptrs[k][i];     // cov(df_i, f_j) = -cov(f_i, df_j) = cov(f_j, df_i)
-                                k_mat_ki_ptrs[k][j] = k_ki_j;      // k_mat(j, ki) = cov(f_j, df_i) = -cov(df_j, f_i) = -cov(f_i, df_j)
-
-                                // cov(df_j, df_i) = cov(df_i, df_j)
-                                // between Dim-k and Dim-k
-                                const double &dxk = diff_ij[k];                        // use reference to improve performance
-                                double &k_kj_ki = k_mat_ki_ptrs[k][kj];                // k_mat(kj, ki)
-                                k_kj_ki = l2_inv * k_ij * (beta - gamma * dxk * dxk);  // cov(df_j/dx_k, df_i/dx_k)
-                                k_mat_kj_ptrs[k][ki] = k_kj_ki;                        // cov(df_i/dx_k, df_j/dx_k)
-                                for (long l = k + 1, li = ki + n_grad, lj = kj + n_grad; l < dim; ++l, li += n_grad, lj += n_grad) {
-                                    // between Dim-k and Dim-l
-                                    const double &dxl = diff_ij[l];
-                                    double &k_kj_li = k_mat_ki_ptrs[l][kj];          // k_mat(kj, li)
-                                    k_kj_li = l2_inv * k_ij * (-gamma * dxk * dxl);  // cov(df_j/dx_k, df_i/dx_l)
-                                    k_mat_ki_ptrs[k][lj] = k_kj_li;                  // k_mat(lj, ki) = cov(df_j/dx_l, df_i/dx_k)
-                                    k_mat_kj_ptrs[k][li] = k_kj_li;                  // k_mat(li, kj) = cov(df_i/dx_l, df_j/dx_k)
-                                    k_mat_kj_ptrs[l][ki] = k_kj_li;                  // k_mat(ki, lj) = cov(df_i/dx_k, df_j/dx_l)
-                                }
-                            }
-                        }
-                    } else if (grad_flags[i]) {
-                        // cov(f_j, df_i) = cov(df_i, f_j)
-                        for (long k = 0, ki = grad_flags[i]; k < dim; ++k, ki += n_grad) {
-                            double &k_ki_j = k_mat_j_ptr[ki];             // k_mat(ki, j), use reference to improve performance
-                            k_ki_j = -beta * l2_inv * diff_ij[k] * k_ij;  // cov(f_j, df_i)
-                            k_mat(j, ki) = k_ki_j;
-                        }
-                    }
-                }  // for (long i = j + 1; i < n; ++i)
-            }  // for (long j = 0; j < n; ++j)
-            return {n_rows, n_cols};
-        }
+            Matrix &k_mat,
+            Vector & /*vec_alpha*/) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-            const long num_samples,
+            const Eigen::Ref<const Matrix> &mat_x,
+            long num_samples,
             Eigen::VectorXl &vec_grad_flags,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_x,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad,
-            Eigen::MatrixXd &k_mat,
-            Eigen::VectorXd & /*vec_alpha*/) const override {
-
-            long dim;
-            if constexpr (Dim == Eigen::Dynamic) {
-                dim = mat_x.rows();
-            } else {
-                dim = Dim;
-            }
-
-            ERL_DEBUG_ASSERT(mat_x.rows() == dim, "Each column of mat_x should be {}-D vector.", dim);
-            long n_grad = 0;
-            long *grad_flags = vec_grad_flags.data();
-            for (long i = 0; i < num_samples; ++i) {
-                if (long &flag = grad_flags[i]; flag > 0) { flag = num_samples + n_grad++; }
-            }
-            long n_rows = num_samples + n_grad * dim;
-            long n_cols = n_rows;
-            ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
-
-            const double alpha = m_setting_->alpha;
-            const double scale_mix = m_setting_->scale_mix;
-            const double l2_inv = 1. / (m_setting_->scale * m_setting_->scale);
-            const double a = 0.5 * l2_inv / scale_mix;
-            // buffer to store the difference between x1_i and x2_j
-            Eigen::Vector<double, Dim> diff_ij;          // avoid memory allocation on the heap
-            Eigen::Vector<double *, Dim> k_mat_kj_ptrs;  // avoid memory allocation on the heap
-            Eigen::Vector<double *, Dim> k_mat_ki_ptrs;  // avoid memory allocation on the heap
-            if constexpr (Dim == Eigen::Dynamic) {
-                diff_ij.resize(dim);
-                k_mat_kj_ptrs.resize(dim);
-                k_mat_ki_ptrs.resize(dim);
-            }
-            for (long j = 0; j < num_samples; ++j) {
-                double *k_mat_j_ptr = k_mat.col(j).data();
-                k_mat_j_ptr[j] = alpha + vec_var_x[j] + vec_var_y[j];  // k_mat(j, j)
-                if (grad_flags[j]) {
-                    for (long k = 0, kj = grad_flags[j]; k < dim; ++k, kj += n_grad) { k_mat_kj_ptrs[k] = k_mat.col(kj).data(); }
-
-                    for (long k = 0, kj = grad_flags[j]; k < dim; ++k, kj += n_grad) {
-                        k_mat_kj_ptrs[k][kj] = l2_inv + vec_var_grad[j];  // k_mat(kj, kj) = cov(df_j/dx_k, f_j)
-                        k_mat_kj_ptrs[k][j] = 0.;                         // k_mat(j, kj) = cov(df_j/dx_k, f_j)
-                        k_mat_j_ptr[kj] = 0.;                             // k_mat(kj, j) = cov(df_j/dx_k, f_j)
-                        for (long l = k + 1, lj = kj + n_grad; l < dim; ++l, lj += n_grad) {
-                            k_mat_kj_ptrs[l][kj] = 0.;  // k_mat(kj, lj) = cov(df_j/dx_k, df_j/dx_l)
-                            k_mat_kj_ptrs[k][lj] = 0.;  // k_mat(lj, kj) = cov(df_j/dx_l, df_j/dx_k)
-                        }
-                    }
-                }
-
-                const double *xj_ptr = mat_x.col(j).data();
-                for (long i = j + 1; i < num_samples; ++i) {
-                    const double *xi_ptr = mat_x.col(i).data();
-                    double *k_mat_i_ptr = k_mat.col(i).data();
-                    double r2 = 0;
-                    for (long k = 0; k < dim; ++k) {
-                        double &dx = diff_ij[k];
-                        dx = xi_ptr[k] - xj_ptr[k];
-                        r2 += dx * dx;
-                    }
-                    double &k_ij = k_mat_j_ptr[i];              // k_mat(i, j)
-                    k_ij = alpha * InlineRq(a, scale_mix, r2);  // cov(f_i, f_j)
-                    k_mat_i_ptr[j] = k_ij;                      // k_mat(j, i)
-
-                    if (const double beta = 1. / (1. + a * r2), gamma = beta * beta * l2_inv * (1. + scale_mix) / scale_mix; grad_flags[j]) {
-                        // cov(df_j, f_i) = cov(f_i, df_j)
-                        for (long k = 0, kj = grad_flags[j]; k < dim; ++k, kj += n_grad) {
-                            double &k_i_kj = k_mat_kj_ptrs[k][i];        // k_mat(i, kj)
-                            k_i_kj = beta * l2_inv * diff_ij[k] * k_ij;  // cov(f_i, df_j/dx_k)
-                            k_mat_i_ptr[kj] = k_i_kj;                    // k_mat(kj, i) = cov(df_j/dx_k, f_i)
-                        }
-
-                        if (grad_flags[i]) {
-                            for (long k = 0, ki = grad_flags[i]; k < dim; ++k, ki += n_grad) { k_mat_ki_ptrs[k] = k_mat.col(ki).data(); }
-
-                            for (long k = 0, ki = grad_flags[i], kj = grad_flags[j]; k < dim; ++k, ki += n_grad, kj += n_grad) {
-                                double &k_ki_j = k_mat_j_ptr[ki];  // k_mat(ki, j), use reference to improve performance
-                                k_ki_j = -k_mat_kj_ptrs[k][i];     // cov(df_i, f_j) = -cov(f_i, df_j) = cov(f_j, df_i)
-                                k_mat_ki_ptrs[k][j] = k_ki_j;      // k_mat(j, ki) = cov(f_j, df_i) = -cov(df_j, f_i) = -cov(f_i, df_j)
-
-                                // cov(df_j, df_i) = cov(df_i, df_j)
-                                // between Dim-k and Dim-k
-                                const double &dxk = diff_ij[k];                        // use reference to improve performance
-                                double &k_kj_ki = k_mat_ki_ptrs[k][kj];                // k_mat(kj, ki)
-                                k_kj_ki = l2_inv * k_ij * (beta - gamma * dxk * dxk);  // cov(df_j/dx_k, df_i/dx_k)
-                                k_mat_kj_ptrs[k][ki] = k_kj_ki;                        // cov(df_i/dx_k, df_j/dx_k)
-                                for (long l = k + 1, li = ki + n_grad, lj = kj + n_grad; l < dim; ++l, li += n_grad, lj += n_grad) {
-                                    // between Dim-k and Dim-l
-                                    const double &dxl = diff_ij[l];
-                                    double &k_kj_li = k_mat_ki_ptrs[l][kj];          // k_mat(kj, li)
-                                    k_kj_li = l2_inv * k_ij * (-gamma * dxk * dxl);  // cov(df_j/dx_k, df_i/dx_l)
-                                    k_mat_ki_ptrs[k][lj] = k_kj_li;                  // k_mat(lj, ki) = cov(df_j/dx_l, df_i/dx_k)
-                                    k_mat_kj_ptrs[k][li] = k_kj_li;                  // k_mat(li, kj) = cov(df_i/dx_l, df_j/dx_k)
-                                    k_mat_kj_ptrs[l][ki] = k_kj_li;                  // k_mat(ki, lj) = cov(df_i/dx_k, df_j/dx_l)
-                                }
-                            }
-                        }
-                    } else if (grad_flags[i]) {
-                        // cov(f_j, df_i) = cov(df_i, f_j)
-                        for (long k = 0, ki = grad_flags[i]; k < dim; ++k, ki += n_grad) {
-                            double &k_ki_j = k_mat_j_ptr[ki];             // k_mat(ki, j), use reference to improve performance
-                            k_ki_j = -beta * l2_inv * k_ij * diff_ij[k];  // cov(f_j, df_i)
-                            k_mat(j, ki) = k_ki_j;
-                        }
-                    }
-                }  // for (long i = j + 1; i < n; ++i)
-            }  // for (long j = 0; j < n; ++j)
-            return {n_rows, n_cols};
-        }
+            const Eigen::Ref<const Vector> &vec_var_x,
+            const Eigen::Ref<const Vector> &vec_var_y,
+            const Eigen::Ref<const Vector> &vec_var_grad,
+            Matrix &k_mat,
+            Vector & /*vec_alpha*/) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
-            const long num_samples1,
+            const Eigen::Ref<const Matrix> &mat_x1,
+            long num_samples1,
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
-            const long num_samples2,
-            const bool predict_gradient,
-            Eigen::MatrixXd &k_mat) const override {
-
-            long dim;
-            if constexpr (Dim == Eigen::Dynamic) {
-                dim = mat_x1.rows();
-            } else {
-                dim = Dim;
-            }
-
-            ERL_DEBUG_ASSERT(mat_x1.rows() == dim, "Each column of mat_x1 should be {}-D vector.", dim);
-            ERL_DEBUG_ASSERT(mat_x2.rows() == dim, "Each column of mat_x2 should be {}-D vector.", dim);
-            const long n_grad = vec_grad1_flags.head(num_samples1).count();
-            const long n_rows = num_samples1 + n_grad * dim;
-            const long n_cols = predict_gradient ? num_samples2 * (dim + 1) : num_samples2;
-            ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
-            ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
-
-            const double alpha = m_setting_->alpha;
-            const double scale_mix = m_setting_->scale_mix;
-            const double l2_inv = 1. / (m_setting_->scale * m_setting_->scale);
-            const double a = 0.5 * l2_inv / scale_mix;
-            // buffer to store the difference between x1_i and x2_j
-            Eigen::Vector<double, Dim> diff_ij;          // avoid memory allocation on the heap
-            Eigen::Vector<double *, Dim> k_mat_kj_ptrs;  // avoid memory allocation on the heap
-            if constexpr (Dim == Eigen::Dynamic) {
-                diff_ij.resize(dim);
-                if (predict_gradient) { k_mat_kj_ptrs.resize(dim); }
-            }
-            for (long j = 0; j < num_samples2; ++j) {
-                const double *x2_j_ptr = mat_x2.col(j).data();
-                double *k_mat_j_ptr = k_mat.col(j).data();
-                if (predict_gradient) {
-                    for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) { k_mat_kj_ptrs[k] = k_mat.col(kj).data(); }
-                }
-
-                for (long i = 0, ki_init = num_samples1; i < num_samples1; ++i) {
-                    const double *x1_i_ptr = mat_x1.col(i).data();
-                    double r2 = 0;
-                    for (long k = 0; k < dim; ++k) {
-                        double &dx = diff_ij[k];
-                        dx = x1_i_ptr[k] - x2_j_ptr[k];
-                        r2 += dx * dx;
-                    }
-                    double &k_ij = k_mat_j_ptr[i];              // k_mat(i, j)
-                    k_ij = alpha * InlineRq(a, scale_mix, r2);  // cov(f1_i, f2_j)
-                    const double beta = 1. / (1. + a * r2);
-                    if (predict_gradient) {
-                        for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) {  // cov(f1_i, df2_j)
-                            k_mat_kj_ptrs[k][i] = beta * l2_inv * k_ij * diff_ij[k];
-                        }
-                    }
-
-                    if (!vec_grad1_flags[i]) { continue; }
-                    const double gamma = beta * beta * l2_inv * (1. + scale_mix) / scale_mix;
-                    if (predict_gradient) {
-                        for (long k = 0, ki = ki_init, kj = j + num_samples2; k < dim; ++k, ki += n_grad, kj += num_samples2) {
-                            k_mat_j_ptr[ki] = -k_mat_kj_ptrs[k][i];
-
-                            // between Dim-k and Dim-k
-                            const double &dxk = diff_ij[k];
-                            // k_mat(ki, kj) = cov(df1_i/dx_k, df2_j/dx_k)
-                            k_mat_kj_ptrs[k][ki] = l2_inv * k_ij * (beta - gamma * dxk * dxk);
-
-                            for (long l = k + 1, li = ki + n_grad, lj = kj + num_samples2; l < dim; ++l, li += n_grad, lj += num_samples2) {
-                                // between Dim-k and Dim-l
-                                const double &dxl = diff_ij[l];
-                                double &k_ki_lj = k_mat_kj_ptrs[l][li];
-                                k_ki_lj = l2_inv * k_ij * (-gamma * dxk * dxl);  // cov(df1_i, df2_j)
-                                k_mat_kj_ptrs[k][li] = k_ki_lj;
-                            }
-                        }
-                    } else {
-                        for (long k = 0, ki = ki_init; k < dim; ++k, ki += n_grad) { k_mat_j_ptr[ki] = -beta * l2_inv * k_ij * diff_ij[k]; }
-                    }
-                    ++ki_init;
-                }
-            }
-            return {n_rows, n_cols};
-        }
+            const Eigen::Ref<const Matrix> &mat_x2,
+            long num_samples2,
+            bool predict_gradient,
+            Matrix &k_mat) const override;
     };
 
-    using RationalQuadratic1D = RationalQuadratic<1>;
-    using RationalQuadratic2D = RationalQuadratic<2>;
-    using RationalQuadratic3D = RationalQuadratic<3>;
-    using RationalQuadraticXd = RationalQuadratic<Eigen::Dynamic>;
+#include "rational_quadratic.tpp"
 
-    ERL_REGISTER_COVARIANCE(RationalQuadratic1D);
-    ERL_REGISTER_COVARIANCE(RationalQuadratic2D);
-    ERL_REGISTER_COVARIANCE(RationalQuadratic3D);
-    ERL_REGISTER_COVARIANCE(RationalQuadraticXd);
+    using RationalQuadratic1d = RationalQuadratic<1, double>;
+    using RationalQuadratic2d = RationalQuadratic<2, double>;
+    using RationalQuadratic3d = RationalQuadratic<3, double>;
+    using RationalQuadraticXd = RationalQuadratic<Eigen::Dynamic, double>;
+
+    using RationalQuadratic1f = RationalQuadratic<1, float>;
+    using RationalQuadratic2f = RationalQuadratic<2, float>;
+    using RationalQuadratic3f = RationalQuadratic<3, float>;
+    using RationalQuadraticXf = RationalQuadratic<Eigen::Dynamic, float>;
+
 }  // namespace erl::covariance

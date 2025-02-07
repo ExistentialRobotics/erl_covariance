@@ -33,7 +33,7 @@ InlineMatern32Gradx1BetweenGradx2(
 }
 
 Eigen::MatrixXd
-matern32_new(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setting, const Eigen::MatrixXd &mat_x, const Eigen::VectorXl &vec_grad_flags) {
+matern32_new(const std::shared_ptr<erl::covariance::Matern32_3d::Setting> &setting, const Eigen::MatrixXd &mat_x, const Eigen::VectorXl &vec_grad_flags) {
 
     constexpr long dim = 3;
     const long n = mat_x.cols();
@@ -174,7 +174,7 @@ matern32_new(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setti
 }
 
 Eigen::MatrixXd
-matern32_new2(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &setting, const Eigen::MatrixXd &mat_x, const Eigen::VectorXl &vec_grad_flags) {
+matern32_new2(const std::shared_ptr<erl::covariance::Matern32_3d::Setting> &setting, const Eigen::MatrixXd &mat_x, const Eigen::VectorXl &vec_grad_flags) {
     const long dim = mat_x.rows();
 
     const long n = mat_x.cols();
@@ -278,9 +278,9 @@ matern32_new2(const std::shared_ptr<erl::covariance::Matern32_3D::Setting> &sett
 TEST(Matern32, 3D) {
     GTEST_PREPARE_OUTPUT_DIR();
 
-    const auto kernel_setting = std::make_shared<erl::covariance::Matern32_3D::Setting>();
+    const auto kernel_setting = std::make_shared<erl::covariance::Matern32_3d::Setting>();
     kernel_setting->x_dim = 3;
-    auto matern32_old = std::make_shared<erl::covariance::Matern32_3D>(kernel_setting);
+    auto matern32_old = std::make_shared<erl::covariance::Matern32_3d>(kernel_setting);
 
     Eigen::MatrixXd mat_x = erl::common::LoadEigenMatrixFromTextFile<double>(gtest_src_dir / "x_train.txt");
     Eigen::VectorXl vec_grad_flags = Eigen::VectorXb::Random(mat_x.cols()).cast<long>();

@@ -1,11 +1,10 @@
 #pragma once
 
 #include "erl_common/eigen.hpp"
-#include "erl_common/exception.hpp"
+#include "erl_common/factory.hpp"
 #include "erl_common/logging.hpp"
 #include "erl_common/yaml.hpp"
 
-#include <functional>
 #include <memory>
 
 namespace erl::covariance {
@@ -13,22 +12,35 @@ namespace erl::covariance {
     // ref1: https://peterroelants.github.io/posts/gaussian-process-kernels/
     // ref2: https://www.cs.toronto.edu/~duvenaud/cookbook/
 
+    template<typename Dtype>
     class Covariance {
     public:
+        using Matrix = Eigen::MatrixX<Dtype>;
+        using Vector = Eigen::VectorX<Dtype>;
+
         // structure for holding the parameters
-        struct Setting : public common::Yamlable<Setting> {
-            long x_dim = 2;           // dimension of input space
-            double alpha = 1.;        // overall covariance magnitude
-            double scale = 1.;        // scale length
-            double scale_mix = 1.;    // used by RationalQuadratic, decreasing this value allows more local variations, inf --> Gaussian kernel
-            Eigen::VectorXd weights;  // used by some custom kernels
+        struct Setting : common::Yamlable<Setting> {
+            long x_dim = 2;        // dimension of input space
+            Dtype alpha = 1.;      // overall covariance magnitude
+            Dtype scale = 1.;      // scale length
+            Dtype scale_mix = 1.;  // used by RationalQuadratic, decreasing this value allows more local variations, inf --> Gaussian kernel
+            Vector weights;        // used by some custom kernels
+
+            [[nodiscard]] YAML::Node
+            Encode() const;
+
+            bool
+            Decode(const YAML::Node &node);
         };
 
-        inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
+        using Factory = common::Factory<Covariance, false, std::shared_ptr<Setting>>;
 
     protected:
-        inline static std::map<std::string, std::function<std::shared_ptr<Covariance>(std::shared_ptr<Setting>)>> s_class_id_mapping_ = {};
         std::shared_ptr<Setting> m_setting_ = nullptr;
+
+    private:
+        inline static const std::string kFileHeader = "# erl::covariance::Covariance<Dtype>";
+        inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
 
     public:
         virtual ~Covariance() = default;
@@ -62,25 +74,19 @@ namespace erl::covariance {
          * @return
          */
         static std::shared_ptr<Covariance>
-        CreateCovariance(const std::string &covariance_type, std::shared_ptr<Setting> setting);
+        CreateCovariance(const std::string &covariance_type, std::shared_ptr<Setting> setting) {
+            return Factory::GetInstance().Create(covariance_type, std::move(setting));
+        }
 
         template<typename Derived>
         static std::enable_if_t<std::is_base_of_v<Covariance, Derived>, bool>
         Register(std::string covariance_type = "") {
-            if (covariance_type.empty()) { covariance_type = demangle(typeid(Derived).name()); }
-            if (s_class_id_mapping_.find(covariance_type) != s_class_id_mapping_.end()) {
-                ERL_WARN("{} is already registered.", covariance_type);
-                return false;
-            }
-
-            s_class_id_mapping_[covariance_type] = [](std::shared_ptr<Setting> setting) {
+            return Factory::GetInstance().template Register<Derived>(covariance_type, [](std::shared_ptr<Setting> setting) {
                 auto covariance_setting = std::dynamic_pointer_cast<typename Derived::Setting>(setting);
                 if (setting == nullptr) { covariance_setting = std::make_shared<typename Derived::Setting>(); }
                 ERL_ASSERTM(covariance_setting != nullptr, "setting is nullptr.");
                 return std::make_shared<Derived>(covariance_setting);
-            };
-            ERL_DEBUG("{} is registered.", covariance_type);
-            return true;
+            });
         }
 
         [[nodiscard]] std::shared_ptr<Setting>
@@ -107,42 +113,30 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Eigen::MatrixXd> &mat_x, long num_samples, Eigen::MatrixXd &mat_k, Eigen::VectorXd &vec_alpha) const = 0;
+        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, long num_samples, Matrix &mat_k, Vector &vec_alpha) const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtrain(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
-            long num_samples,
-            Eigen::MatrixXd &mat_k,
-            Eigen::VectorXd &vec_alpha) const = 0;
+        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, const Eigen::Ref<const Vector> &vec_var_y, long num_samples, Matrix &mat_k, Vector &vec_alpha)
+            const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtest(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
-            long num_samples1,
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
-            long num_samples2,
-            Eigen::MatrixXd &mat_k) const = 0;
+        ComputeKtest(const Eigen::Ref<const Matrix> &mat_x1, long num_samples1, const Eigen::Ref<const Matrix> &mat_x2, long num_samples2, Matrix &mat_k)
+            const = 0;
+
+        [[nodiscard]] virtual std::pair<long, long>
+        ComputeKtrainWithGradient(const Eigen::Ref<const Matrix> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, Matrix &mat_k, Vector &vec_alpha)
+            const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
         ComputeKtrainWithGradient(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
+            const Eigen::Ref<const Matrix> &mat_x,
             long num_samples,
             Eigen::VectorXl &vec_grad_flags,
-            Eigen::MatrixXd &mat_k,
-            Eigen::VectorXd &vec_alpha) const = 0;
-
-        [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtrainWithGradient(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x,
-            long num_samples,
-            Eigen::VectorXl &vec_grad_flags,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_x,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_y,
-            const Eigen::Ref<const Eigen::VectorXd> &vec_var_grad,
-            Eigen::MatrixXd &mat_k,
-            Eigen::VectorXd &vec_alpha) const = 0;
+            const Eigen::Ref<const Vector> &vec_var_x,
+            const Eigen::Ref<const Vector> &vec_var_y,
+            const Eigen::Ref<const Vector> &vec_var_grad,
+            Matrix &mat_k,
+            Vector &vec_alpha) const = 0;
 
         /**
          * @brief compute kernel matrix between train samples and test queries with gradient.
@@ -151,18 +145,19 @@ namespace erl::covariance {
          * @param vec_grad1_flags
          * @param mat_x2
          * @param num_samples2
+         * @param predict_gradient whether to predict gradient
          * @param mat_k output kernel matrix
          * @return
          */
         [[nodiscard]] virtual std::pair<long, long>
         ComputeKtestWithGradient(
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x1,
+            const Eigen::Ref<const Matrix> &mat_x1,
             long num_samples1,
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
-            const Eigen::Ref<const Eigen::MatrixXd> &mat_x2,
+            const Eigen::Ref<const Matrix> &mat_x2,
             long num_samples2,
             bool predict_gradient,
-            Eigen::MatrixXd &mat_k) const = 0;
+            Matrix &mat_k) const = 0;
 
         [[nodiscard]] bool
         operator==(const Covariance &other) const;
@@ -189,30 +184,7 @@ namespace erl::covariance {
             : m_setting_(std::move(setting)) {}
     };
 
-#define ERL_REGISTER_COVARIANCE(Derived) inline const volatile bool kRegistered##Derived = erl::covariance::Covariance::Register<Derived>()
+#include "covariance.tpp"
+
+#define ERL_REGISTER_COVARIANCE(Derived) inline const volatile bool kRegistered##Derived = Derived::Register<Derived>()
 }  // namespace erl::covariance
-
-template<>
-struct YAML::convert<erl::covariance::Covariance::Setting> {
-    static Node
-    encode(const erl::covariance::Covariance::Setting &setting) {
-        Node node(NodeType::Map);
-        node["x_dim"] = setting.x_dim;
-        node["alpha"] = setting.alpha;
-        node["scale"] = setting.scale;
-        node["scale_mix"] = setting.scale_mix;
-        node["weights"] = setting.weights;
-        return node;
-    }
-
-    static bool
-    decode(const Node &node, erl::covariance::Covariance::Setting &setting) {
-        if (!node.IsMap()) { return false; }
-        setting.x_dim = node["x_dim"].as<int>();
-        setting.alpha = node["alpha"].as<double>();
-        setting.scale = node["scale"].as<double>();
-        setting.scale_mix = node["scale_mix"].as<double>();
-        setting.weights = node["weights"].as<Eigen::VectorXd>();
-        return true;
-    }
-};
