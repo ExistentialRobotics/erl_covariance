@@ -61,8 +61,6 @@ namespace erl::covariance {
             Matrix &) const override;
     };
 
-#include "ornstein_uhlenbeck.tpp"
-
     using OrnsteinUhlenbeck1d = OrnsteinUhlenbeck<1, double>;
     using OrnsteinUhlenbeck2d = OrnsteinUhlenbeck<2, double>;
     using OrnsteinUhlenbeck3d = OrnsteinUhlenbeck<3, double>;
@@ -73,13 +71,6 @@ namespace erl::covariance {
     using OrnsteinUhlenbeck3f = OrnsteinUhlenbeck<3, float>;
     using OrnsteinUhlenbeckXf = OrnsteinUhlenbeck<Eigen::Dynamic, float>;
 
-    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck1d);
-    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck2d);
-    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck3d);
-    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeckXd);
-
-    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck1f);
-    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck2f);
-    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeck3f);
-    ERL_REGISTER_COVARIANCE(OrnsteinUhlenbeckXf);
 }  // namespace erl::covariance
+
+#include "ornstein_uhlenbeck.tpp"

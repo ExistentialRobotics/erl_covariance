@@ -63,8 +63,6 @@ namespace erl::covariance {
             Matrix &mat_k) const override;
     };
 
-#include "matern32.tpp"
-
     using Matern32_1d = Matern32<1, double>;
     using Matern32_2d = Matern32<2, double>;
     using Matern32_3d = Matern32<3, double>;
@@ -75,14 +73,6 @@ namespace erl::covariance {
     using Matern32_3f = Matern32<3, float>;
     using Matern32_Xf = Matern32<Eigen::Dynamic, float>;
 
-    ERL_REGISTER_COVARIANCE(Matern32_1d);
-    ERL_REGISTER_COVARIANCE(Matern32_2d);
-    ERL_REGISTER_COVARIANCE(Matern32_3d);
-    ERL_REGISTER_COVARIANCE(Matern32_Xd);
-
-    ERL_REGISTER_COVARIANCE(Matern32_1f);
-    ERL_REGISTER_COVARIANCE(Matern32_2f);
-    ERL_REGISTER_COVARIANCE(Matern32_3f);
-    ERL_REGISTER_COVARIANCE(Matern32_Xf);
-
 }  // namespace erl::covariance
+
+#include "matern32.tpp"

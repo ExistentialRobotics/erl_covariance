@@ -19,7 +19,7 @@ namespace erl::covariance {
         using Matrix = typename Super::Matrix;
         using Vector = typename Super::Vector;
 
-        struct Setting : common::Yamlable<Setting, typename Super::Setting> {
+        struct Setting : Super::Setting {
             long max_num_basis = -1;    // maximum number of basis functions per dimension, -1 means no limit
             Eigen::VectorXl num_basis;  // number of basis functions per dimension
             Vector boundaries;          // boundaries for the basis functions per dimension
@@ -60,14 +60,16 @@ namespace erl::covariance {
                 return m_inv_spectral_densities_;
             }
 
-            [[nodiscard]] YAML::Node
-            Encode() const;
+            struct YamlConvertImpl {
+                static YAML::Node
+                encode(const Setting &setting);
 
-            bool
-            Decode(const YAML::Node &node);
+                static bool
+                decode(const YAML::Node &node, Setting &setting);
+            };
         };
 
-        inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
+        // inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
 
     protected:
         std::shared_ptr<Setting> m_setting_ = nullptr;
@@ -216,6 +218,12 @@ namespace erl::covariance {
         Read(std::istream &s) override;
     };
 
+}  // namespace erl::covariance
+
 #include "reduced_rank_covariance.tpp"
 
-}  // namespace erl::covariance
+template<>
+struct YAML::convert<erl::covariance::ReducedRankCovariance<double>::Setting> : erl::covariance::ReducedRankCovariance<double>::Setting::YamlConvertImpl {};
+
+template<>
+struct YAML::convert<erl::covariance::ReducedRankCovariance<float>::Setting> : erl::covariance::ReducedRankCovariance<float>::Setting::YamlConvertImpl {};

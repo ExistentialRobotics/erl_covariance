@@ -64,8 +64,6 @@ namespace erl::covariance {
             Matrix &mat_k) const override;
     };
 
-#include "radial_bias_function.tpp"
-
     using RadialBiasFunction1d = RadialBiasFunction<1, double>;
     using RadialBiasFunction2d = RadialBiasFunction<2, double>;
     using RadialBiasFunction3d = RadialBiasFunction<3, double>;
@@ -77,3 +75,5 @@ namespace erl::covariance {
     using RadialBiasFunctionXf = RadialBiasFunction<Eigen::Dynamic, float>;
 
 }  // namespace erl::covariance
+
+#include "radial_bias_function.tpp"

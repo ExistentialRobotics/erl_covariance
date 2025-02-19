@@ -66,8 +66,6 @@ namespace erl::covariance {
             Matrix &k_mat) const override;
     };
 
-#include "rational_quadratic.tpp"
-
     using RationalQuadratic1d = RationalQuadratic<1, double>;
     using RationalQuadratic2d = RationalQuadratic<2, double>;
     using RationalQuadratic3d = RationalQuadratic<3, double>;
@@ -79,3 +77,5 @@ namespace erl::covariance {
     using RationalQuadraticXf = RationalQuadratic<Eigen::Dynamic, float>;
 
 }  // namespace erl::covariance
+
+#include "rational_quadratic.tpp"

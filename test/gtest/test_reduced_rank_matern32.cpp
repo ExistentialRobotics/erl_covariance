@@ -6,6 +6,8 @@ TEST(ReducedRankMatern32_2d, Copy) {
     using namespace erl::covariance;
     auto setting = std::make_shared<ReducedRankMatern32_2d::Setting>();
     ASSERT_TRUE(setting->FromYamlFile(gtest_src_dir / "reduced_rank_matern32.yaml"));
+    std::cout << *setting << std::endl;
+
     std::shared_ptr<ReducedRankMatern32_2d> cov = std::make_shared<ReducedRankMatern32_2d>(setting);
     cov->GetKtrainBuffer() = Eigen::MatrixXd::Random(10, 10);
     cov->BuildSpectralDensities();

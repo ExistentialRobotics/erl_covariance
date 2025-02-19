@@ -1,7 +1,7 @@
 #pragma once
 
 #include "erl_common/eigen.hpp"
-#include "erl_common/factory.hpp"
+#include "erl_common/factory_pattern.hpp"
 #include "erl_common/logging.hpp"
 #include "erl_common/yaml.hpp"
 
@@ -26,21 +26,23 @@ namespace erl::covariance {
             Dtype scale_mix = 1.;  // used by RationalQuadratic, decreasing this value allows more local variations, inf --> Gaussian kernel
             Vector weights;        // used by some custom kernels
 
-            [[nodiscard]] YAML::Node
-            Encode() const;
+            struct YamlConvertImpl {
+                static YAML::Node
+                encode(const Setting &setting);
 
-            bool
-            Decode(const YAML::Node &node);
+                static bool
+                decode(const YAML::Node &node, Setting &setting);
+            };
         };
 
-        using Factory = common::Factory<Covariance, false, std::shared_ptr<Setting>>;
+        using Factory = common::FactoryPattern<Covariance, false, false, std::shared_ptr<Setting>>;
 
     protected:
         std::shared_ptr<Setting> m_setting_ = nullptr;
 
     private:
         inline static const std::string kFileHeader = "# erl::covariance::Covariance<Dtype>";
-        inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
+        // inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
 
     public:
         virtual ~Covariance() = default;
@@ -79,12 +81,12 @@ namespace erl::covariance {
         }
 
         template<typename Derived>
-        static std::enable_if_t<std::is_base_of_v<Covariance, Derived>, bool>
+        static bool
         Register(std::string covariance_type = "") {
             return Factory::GetInstance().template Register<Derived>(covariance_type, [](std::shared_ptr<Setting> setting) {
                 auto covariance_setting = std::dynamic_pointer_cast<typename Derived::Setting>(setting);
                 if (setting == nullptr) { covariance_setting = std::make_shared<typename Derived::Setting>(); }
-                ERL_ASSERTM(covariance_setting != nullptr, "setting is nullptr.");
+                ERL_ASSERTM(covariance_setting != nullptr, "Failed to cast setting for derived Covariance of type {}.", typeid(Derived).name());
                 return std::make_shared<Derived>(covariance_setting);
             });
         }
@@ -186,5 +188,11 @@ namespace erl::covariance {
 
 #include "covariance.tpp"
 
-#define ERL_REGISTER_COVARIANCE(Derived) inline const volatile bool kRegistered##Derived = Derived::Register<Derived>()
+    // #define ERL_REGISTER_COVARIANCE(Derived) inline const volatile bool kRegistered##Derived = Derived::Register<Derived>()
 }  // namespace erl::covariance
+
+template<>
+struct YAML::convert<erl::covariance::Covariance<double>::Setting> : erl::covariance::Covariance<double>::Setting::YamlConvertImpl {};
+
+template<>
+struct YAML::convert<erl::covariance::Covariance<float>::Setting> : erl::covariance::Covariance<float>::Setting::YamlConvertImpl {};

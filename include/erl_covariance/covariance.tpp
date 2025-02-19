@@ -2,25 +2,25 @@
 
 template<typename Dtype>
 YAML::Node
-Covariance<Dtype>::Setting::Encode() const {
-    YAML::Node node(YAML::NodeType::Map);
-    node["x_dim"] = x_dim;
-    node["alpha"] = alpha;
-    node["scale"] = scale;
-    node["scale_mix"] = scale_mix;
-    node["weights"] = weights;
-    return node;
+Covariance<Dtype>::Setting::YamlConvertImpl::encode(const Setting &setting) {
+        YAML::Node node(YAML::NodeType::Map);
+        node["x_dim"] = setting.x_dim;
+        node["alpha"] = setting.alpha;
+        node["scale"] = setting.scale;
+        node["scale_mix"] = setting.scale_mix;
+        node["weights"] = setting.weights;
+        return node;
 }
 
 template<typename Dtype>
 bool
-Covariance<Dtype>::Setting::Decode(const YAML::Node &node) {
+Covariance<Dtype>::Setting::YamlConvertImpl::decode(const YAML::Node &node, Setting &setting) {
     if (!node.IsMap()) { return false; }
-    x_dim = node["x_dim"].as<int>();
-    alpha = node["alpha"].as<Dtype>();
-    scale = node["scale"].as<Dtype>();
-    scale_mix = node["scale_mix"].as<Dtype>();
-    weights = node["weights"].as<Vector>();
+    setting.x_dim = node["x_dim"].as<int>();
+    setting.alpha = node["alpha"].as<Dtype>();
+    setting.scale = node["scale"].as<Dtype>();
+    setting.scale_mix = node["scale_mix"].as<Dtype>();
+    setting.weights = node["weights"].as<Vector>();
     return true;
 }
 
