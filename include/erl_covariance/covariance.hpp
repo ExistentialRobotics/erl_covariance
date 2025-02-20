@@ -1,5 +1,7 @@
 #pragma once
 
+#include "init.hpp"
+
 #include "erl_common/eigen.hpp"
 #include "erl_common/factory_pattern.hpp"
 #include "erl_common/logging.hpp"

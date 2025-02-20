@@ -1,4 +1,4 @@
-#include "erl_covariance/register.hpp"
+#include "erl_covariance/init.hpp"
 
 #include "erl_covariance/matern32.hpp"
 #include "erl_covariance/ornstein_uhlenbeck.hpp"
@@ -11,7 +11,11 @@ namespace erl::covariance {
 
 #define REGISTER(x) (void) x::Register<x>()
 
-    const bool kRegistered = []() -> bool {
+    bool initialized = false;
+
+    bool
+    Init() {
+        if (initialized) { return true; }
         REGISTER(Covariance<double>::Setting);
         REGISTER(Covariance<float>::Setting);
         REGISTER(Matern32_1d);
@@ -56,6 +60,8 @@ namespace erl::covariance {
         REGISTER(ReducedRankMatern32_2f);
         REGISTER(ReducedRankMatern32_3f);
         REGISTER(ReducedRankMatern32_Xf);
+        ERL_INFO("erl_covariance initialized");
+        initialized = true;
         return true;
-    }();
+    }
 }  // namespace erl::covariance
