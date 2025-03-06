@@ -4,7 +4,6 @@
 
 #include "erl_common/eigen.hpp"
 #include "erl_common/factory_pattern.hpp"
-#include "erl_common/logging.hpp"
 #include "erl_common/yaml.hpp"
 
 #include <memory>
@@ -44,7 +43,6 @@ namespace erl::covariance {
 
     private:
         inline static const std::string kFileHeader = "# erl::covariance::Covariance<Dtype>";
-        // inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
 
     public:
         virtual ~Covariance() = default;
@@ -57,11 +55,7 @@ namespace erl::covariance {
         operator=(Covariance &&) = default;
 
         [[nodiscard]] std::size_t
-        GetMemoryUsage() const {
-            std::size_t memory_usage = sizeof(*this);
-            if (m_setting_ != nullptr) { memory_usage += sizeof(Setting); }
-            return memory_usage;
-        }
+        GetMemoryUsage() const;
 
         //-- factory pattern
         /**
@@ -78,43 +72,25 @@ namespace erl::covariance {
          * @return
          */
         static std::shared_ptr<Covariance>
-        CreateCovariance(const std::string &covariance_type, std::shared_ptr<Setting> setting) {
-            return Factory::GetInstance().Create(covariance_type, std::move(setting));
-        }
+        CreateCovariance(const std::string &covariance_type, std::shared_ptr<Setting> setting);
 
         template<typename Derived>
         static bool
-        Register(std::string covariance_type = "") {
-            return Factory::GetInstance().template Register<Derived>(covariance_type, [](std::shared_ptr<Setting> setting) {
-                auto covariance_setting = std::dynamic_pointer_cast<typename Derived::Setting>(setting);
-                if (setting == nullptr) { covariance_setting = std::make_shared<typename Derived::Setting>(); }
-                ERL_ASSERTM(covariance_setting != nullptr, "Failed to cast setting for derived Covariance of type {}.", typeid(Derived).name());
-                return std::make_shared<Derived>(covariance_setting);
-            });
-        }
+        Register(std::string covariance_type = "");
 
         [[nodiscard]] std::shared_ptr<Setting>
-        GetSetting() const {
-            return m_setting_;
-        }
+        GetSetting() const;
 
         [[nodiscard]] virtual std::pair<long, long>
-        GetMinimumKtrainSize(const long num_samples, const long num_samples_with_gradient, const long num_gradient_dimensions) const {
-            long n = num_samples + num_samples_with_gradient * num_gradient_dimensions;
-            return {n, n};
-        }
+        GetMinimumKtrainSize(long num_samples, long num_samples_with_gradient, long num_gradient_dimensions) const;
 
         [[nodiscard]] virtual std::pair<long, long>
         GetMinimumKtestSize(
-            const long num_train_samples,
-            const long num_train_samples_with_gradient,
-            const long num_gradient_dimensions,
-            const long num_test_queries,
-            const bool predict_gradient) const {
-            return {
-                num_train_samples + num_train_samples_with_gradient * num_gradient_dimensions,
-                predict_gradient ? num_test_queries * (1 + num_gradient_dimensions) : num_test_queries};
-        }
+            long num_train_samples,
+            long num_train_samples_with_gradient,
+            long num_gradient_dimensions,
+            long num_test_queries,
+            bool predict_gradient) const;
 
         [[nodiscard]] virtual std::pair<long, long>
         ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, VectorX &vec_alpha) const = 0;
@@ -167,9 +143,7 @@ namespace erl::covariance {
         operator==(const Covariance &other) const;
 
         [[nodiscard]] bool
-        operator!=(const Covariance &other) const {
-            return !(*this == other);
-        }
+        operator!=(const Covariance &other) const;
 
         [[nodiscard]] virtual bool
         Write(const std::string &filename) const;
@@ -184,14 +158,12 @@ namespace erl::covariance {
         Read(std::istream &s);
 
     protected:
-        explicit Covariance(std::shared_ptr<Setting> setting)
-            : m_setting_(std::move(setting)) {}
+        explicit Covariance(std::shared_ptr<Setting> setting);
     };
 
-#include "covariance.tpp"
-
-    // #define ERL_REGISTER_COVARIANCE(Derived) inline const volatile bool kRegistered##Derived = Derived::Register<Derived>()
 }  // namespace erl::covariance
+
+#include "covariance.tpp"
 
 template<>
 struct YAML::convert<erl::covariance::Covariance<double>::Setting> : erl::covariance::Covariance<double>::Setting::YamlConvertImpl {};
