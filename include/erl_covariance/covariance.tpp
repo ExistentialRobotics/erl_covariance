@@ -20,7 +20,7 @@ Covariance<Dtype>::Setting::YamlConvertImpl::decode(const YAML::Node &node, Sett
     setting.alpha = node["alpha"].as<Dtype>();
     setting.scale = node["scale"].as<Dtype>();
     setting.scale_mix = node["scale_mix"].as<Dtype>();
-    setting.weights = node["weights"].as<Vector>();
+    setting.weights = node["weights"].as<VectorX>();
     return true;
 }
 

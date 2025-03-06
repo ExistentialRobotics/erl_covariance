@@ -10,8 +10,8 @@ namespace erl::covariance {
     public:
         using Super = Covariance<Dtype>;
         using Setting = typename Super::Setting;
-        using Matrix = typename Super::Matrix;
-        using Vector = typename Super::Vector;
+        using MatrixX = Eigen::MatrixX<Dtype>;
+        using VectorX = Eigen::VectorX<Dtype>;
 
         explicit RadialBiasFunction(std::shared_ptr<Setting> setting)
             : Super(std::move(setting)) {
@@ -24,44 +24,48 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, long num_samples, Matrix &mat_k, Vector & /*vec_alpha*/) const override;
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, VectorX & /*vec_alpha*/) const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, const Eigen::Ref<const Vector> &vec_var_y, long num_samples, Matrix &mat_k, Vector & /*vec_alpha*/)
-            const override;
+        ComputeKtrain(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            const Eigen::Ref<const VectorX> &vec_var_y,
+            long num_samples,
+            MatrixX &mat_k,
+            VectorX & /*vec_alpha*/) const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtest(const Eigen::Ref<const Matrix> &mat_x1, long num_samples1, const Eigen::Ref<const Matrix> &mat_x2, long num_samples2, Matrix &mat_k)
+        ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &mat_k)
             const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
-            const Eigen::Ref<const Matrix> &mat_x,
+            const Eigen::Ref<const MatrixX> &mat_x,
             long num_samples,
             Eigen::VectorXl &vec_grad_flags,
-            Matrix &mat_k,
-            Vector & /*vec_alpha*/) const override;
+            MatrixX &mat_k,
+            VectorX & /*vec_alpha*/) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
-            const Eigen::Ref<const Matrix> &mat_x,
+            const Eigen::Ref<const MatrixX> &mat_x,
             long num_samples,
             Eigen::VectorXl &vec_grad_flags,
-            const Eigen::Ref<const Vector> &vec_var_x,
-            const Eigen::Ref<const Vector> &vec_var_y,
-            const Eigen::Ref<const Vector> &vec_var_grad,
-            Matrix &mat_k,
-            Vector & /*vec_alpha*/) const override;
+            const Eigen::Ref<const VectorX> &vec_var_x,
+            const Eigen::Ref<const VectorX> &vec_var_y,
+            const Eigen::Ref<const VectorX> &vec_var_grad,
+            MatrixX &mat_k,
+            VectorX & /*vec_alpha*/) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(
-            const Eigen::Ref<const Matrix> &mat_x1,
+            const Eigen::Ref<const MatrixX> &mat_x1,
             long num_samples1,
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
-            const Eigen::Ref<const Matrix> &mat_x2,
+            const Eigen::Ref<const MatrixX> &mat_x2,
             long num_samples2,
             bool predict_gradient,
-            Matrix &mat_k) const override;
+            MatrixX &mat_k) const override;
     };
 
     using RadialBiasFunction1d = RadialBiasFunction<1, double>;

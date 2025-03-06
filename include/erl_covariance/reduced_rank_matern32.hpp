@@ -9,8 +9,8 @@ namespace erl::covariance {
     public:
         using Super = ReducedRankCovariance<Dtype>;
         using Setting = typename Super::Setting;
-        using Matrix = typename Super::Matrix;
-        using Vector = typename Super::Vector;
+        using MatrixX = Eigen::MatrixX<Dtype>;
+        using VectorX = Eigen::VectorX<Dtype>;
 
         explicit ReducedRankMatern32(std::shared_ptr<Setting> setting)
             : Super(std::move(setting)) {}
@@ -20,12 +20,12 @@ namespace erl::covariance {
             return type_name<ReducedRankMatern32>();
         }
 
-        [[nodiscard]] Vector
-        ComputeSpectralDensities(const Vector &freq_squared_norm) const override {
+        [[nodiscard]] VectorX
+        ComputeSpectralDensities(const VectorX &freq_squared_norm) const override {
             const Dtype l_inv = 1.0 / Super::m_setting_->scale;
             const Dtype l2_inv = l_inv * l_inv;
             const Dtype beta = 3.0 * l2_inv;
-            Vector s(freq_squared_norm.size());
+            VectorX s(freq_squared_norm.size());
             Dtype *s_ptr = s.data();
             if (Dim == 1) {
                 const Dtype alpha = 12.0 * std::sqrt(3.0) * l2_inv * l_inv;

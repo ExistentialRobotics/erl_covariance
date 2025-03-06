@@ -17,8 +17,8 @@ namespace erl::covariance {
     template<typename Dtype>
     class Covariance {
     public:
-        using Matrix = Eigen::MatrixX<Dtype>;
-        using Vector = Eigen::VectorX<Dtype>;
+        using MatrixX = Eigen::MatrixX<Dtype>;
+        using VectorX = Eigen::VectorX<Dtype>;
 
         // structure for holding the parameters
         struct Setting : common::Yamlable<Setting> {
@@ -26,7 +26,7 @@ namespace erl::covariance {
             Dtype alpha = 1.;      // overall covariance magnitude
             Dtype scale = 1.;      // scale length
             Dtype scale_mix = 1.;  // used by RationalQuadratic, decreasing this value allows more local variations, inf --> Gaussian kernel
-            Vector weights;        // used by some custom kernels
+            VectorX weights;       // used by some custom kernels
 
             struct YamlConvertImpl {
                 static YAML::Node
@@ -117,30 +117,30 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, long num_samples, Matrix &mat_k, Vector &vec_alpha) const = 0;
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, VectorX &vec_alpha) const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, const Eigen::Ref<const Vector> &vec_var_y, long num_samples, Matrix &mat_k, Vector &vec_alpha)
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const Eigen::Ref<const VectorX> &vec_var_y, long num_samples, MatrixX &mat_k, VectorX &vec_alpha)
             const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtest(const Eigen::Ref<const Matrix> &mat_x1, long num_samples1, const Eigen::Ref<const Matrix> &mat_x2, long num_samples2, Matrix &mat_k)
+        ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &mat_k)
             const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtrainWithGradient(const Eigen::Ref<const Matrix> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, Matrix &mat_k, Vector &vec_alpha)
+        ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, MatrixX &mat_k, VectorX &vec_alpha)
             const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
         ComputeKtrainWithGradient(
-            const Eigen::Ref<const Matrix> &mat_x,
+            const Eigen::Ref<const MatrixX> &mat_x,
             long num_samples,
             Eigen::VectorXl &vec_grad_flags,
-            const Eigen::Ref<const Vector> &vec_var_x,
-            const Eigen::Ref<const Vector> &vec_var_y,
-            const Eigen::Ref<const Vector> &vec_var_grad,
-            Matrix &mat_k,
-            Vector &vec_alpha) const = 0;
+            const Eigen::Ref<const VectorX> &vec_var_x,
+            const Eigen::Ref<const VectorX> &vec_var_y,
+            const Eigen::Ref<const VectorX> &vec_var_grad,
+            MatrixX &mat_k,
+            VectorX &vec_alpha) const = 0;
 
         /**
          * @brief compute kernel matrix between train samples and test queries with gradient.
@@ -155,13 +155,13 @@ namespace erl::covariance {
          */
         [[nodiscard]] virtual std::pair<long, long>
         ComputeKtestWithGradient(
-            const Eigen::Ref<const Matrix> &mat_x1,
+            const Eigen::Ref<const MatrixX> &mat_x1,
             long num_samples1,
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
-            const Eigen::Ref<const Matrix> &mat_x2,
+            const Eigen::Ref<const MatrixX> &mat_x2,
             long num_samples2,
             bool predict_gradient,
-            Matrix &mat_k) const = 0;
+            MatrixX &mat_k) const = 0;
 
         [[nodiscard]] bool
         operator==(const Covariance &other) const;

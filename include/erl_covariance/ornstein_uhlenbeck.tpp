@@ -7,7 +7,7 @@
 namespace erl::covariance {
     template<int Dim, typename Dtype>
     std::pair<long, long>
-    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, const long num_samples, Matrix &k_mat, Vector & /*vec_y*/) const {
+    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &k_mat, VectorX & /*vec_y*/) const {
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
         ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
         long dim;
@@ -41,11 +41,11 @@ namespace erl::covariance {
     template<int Dim, typename Dtype>
     std::pair<long, long>
     OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrain(
-        const Eigen::Ref<const Matrix> &mat_x,
-        const Eigen::Ref<const Vector> &vec_var_y,
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const Eigen::Ref<const VectorX> &vec_var_y,
         const long num_samples,
-        Matrix &k_mat,
-        Vector & /*vec_y*/) const {
+        MatrixX &k_mat,
+        VectorX & /*vec_y*/) const {
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
         ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
         ERL_DEBUG_ASSERT(vec_var_y.size() >= num_samples, "vec_var_y does not have enough elements, it should be >= {}.", num_samples);
@@ -81,11 +81,11 @@ namespace erl::covariance {
     template<int Dim, typename Dtype>
     std::pair<long, long>
     OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtest(
-        const Eigen::Ref<const Matrix> &mat_x1,
+        const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
-        const Eigen::Ref<const Matrix> &mat_x2,
+        const Eigen::Ref<const MatrixX> &mat_x2,
         const long num_samples2,
-        Matrix &k_mat) const {
+        MatrixX &k_mat) const {
 
         ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x_1 and x_2 should have the same dimension.");
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples1, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples1);
@@ -118,34 +118,34 @@ namespace erl::covariance {
 
     template<int Dim, typename Dtype>
     std::pair<long, long>
-    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrainWithGradient(const Eigen::Ref<const Matrix> &, long, Eigen::VectorXl &, Matrix &, Vector &) const {
+    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &, long, Eigen::VectorXl &, MatrixX &, VectorX &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 
     template<int Dim, typename Dtype>
     std::pair<long, long>
     OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrainWithGradient(
-        const Eigen::Ref<const Matrix> &,
+        const Eigen::Ref<const MatrixX> &,
         long,
         Eigen::VectorXl &,
-        const Eigen::Ref<const Vector> &,
-        const Eigen::Ref<const Vector> &,
-        const Eigen::Ref<const Vector> &,
-        Matrix &,
-        Vector &) const {
+        const Eigen::Ref<const VectorX> &,
+        const Eigen::Ref<const VectorX> &,
+        const Eigen::Ref<const VectorX> &,
+        MatrixX &,
+        VectorX &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 
     template<int Dim, typename Dtype>
     std::pair<long, long>
     OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtestWithGradient(
-        const Eigen::Ref<const Matrix> &,
+        const Eigen::Ref<const MatrixX> &,
         long,
         const Eigen::Ref<const Eigen::VectorXl> &,
-        const Eigen::Ref<const Matrix> &,
+        const Eigen::Ref<const MatrixX> &,
         long,
         bool,
-        Matrix &) const {
+        MatrixX &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 }  // namespace erl::covariance

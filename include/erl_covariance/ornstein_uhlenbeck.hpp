@@ -12,8 +12,8 @@ namespace erl::covariance {
     public:
         using Super = Covariance<Dtype>;
         using Setting = typename Super::Setting;
-        using Matrix = typename Super::Matrix;
-        using Vector = typename Super::Vector;
+        using MatrixX = Eigen::MatrixX<Dtype>;
+        using VectorX = Eigen::VectorX<Dtype>;
 
         explicit OrnsteinUhlenbeck(std::shared_ptr<Setting> setting)
             : Super(std::move(setting)) {
@@ -26,39 +26,39 @@ namespace erl::covariance {
         }
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, long num_samples, Matrix &k_mat, Vector & /*vec_y*/) const override;
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &k_mat, VectorX & /*vec_y*/) const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, const Eigen::Ref<const Vector> &vec_var_y, long num_samples, Matrix &k_mat, Vector & /*vec_y*/)
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const Eigen::Ref<const VectorX> &vec_var_y, long num_samples, MatrixX &k_mat, VectorX & /*vec_y*/)
             const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtest(const Eigen::Ref<const Matrix> &mat_x1, long num_samples1, const Eigen::Ref<const Matrix> &mat_x2, long num_samples2, Matrix &k_mat)
+        ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &k_mat)
             const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrainWithGradient(const Eigen::Ref<const Matrix> &, long, Eigen::VectorXl &, Matrix &, Vector &) const override;
+        ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &, long, Eigen::VectorXl &, MatrixX &, VectorX &) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
-            const Eigen::Ref<const Matrix> &,
+            const Eigen::Ref<const MatrixX> &,
             long,
             Eigen::VectorXl &,
-            const Eigen::Ref<const Vector> &,
-            const Eigen::Ref<const Vector> &,
-            const Eigen::Ref<const Vector> &,
-            Matrix &,
-            Vector &) const override;
+            const Eigen::Ref<const VectorX> &,
+            const Eigen::Ref<const VectorX> &,
+            const Eigen::Ref<const VectorX> &,
+            MatrixX &,
+            VectorX &) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(
-            const Eigen::Ref<const Matrix> &,
+            const Eigen::Ref<const MatrixX> &,
             long,
             const Eigen::Ref<const Eigen::VectorXl> &,
-            const Eigen::Ref<const Matrix> &,
+            const Eigen::Ref<const MatrixX> &,
             long,
             bool,
-            Matrix &) const override;
+            MatrixX &) const override;
     };
 
     using OrnsteinUhlenbeck1d = OrnsteinUhlenbeck<1, double>;

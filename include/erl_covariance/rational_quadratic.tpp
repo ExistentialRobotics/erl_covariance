@@ -9,7 +9,7 @@ namespace erl::covariance {
 
     template<int Dim, typename Dtype>
     std::pair<long, long>
-    RationalQuadratic<Dim, Dtype>::ComputeKtrain(const Eigen::Ref<const Matrix> &mat_x, const long num_samples, Matrix &k_mat, Vector & /*vec_alpha*/) const {
+    RationalQuadratic<Dim, Dtype>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &k_mat, VectorX & /*vec_alpha*/) const {
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
         ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
         long dim;
@@ -46,11 +46,11 @@ namespace erl::covariance {
     template<int Dim, typename Dtype>
     std::pair<long, long>
     RationalQuadratic<Dim, Dtype>::ComputeKtrain(
-        const Eigen::Ref<const Matrix> &mat_x,
-        const Eigen::Ref<const Vector> &vec_var_y,
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const Eigen::Ref<const VectorX> &vec_var_y,
         const long num_samples,
-        Matrix &k_mat,
-        Vector & /*vec_alpha*/) const {
+        MatrixX &k_mat,
+        VectorX & /*vec_alpha*/) const {
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
         ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
         long dim;
@@ -87,11 +87,11 @@ namespace erl::covariance {
     template<int Dim, typename Dtype>
     std::pair<long, long>
     RationalQuadratic<Dim, Dtype>::ComputeKtest(
-        const Eigen::Ref<const Matrix> &mat_x1,
+        const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
-        const Eigen::Ref<const Matrix> &mat_x2,
+        const Eigen::Ref<const MatrixX> &mat_x2,
         const long num_samples2,
-        Matrix &k_mat) const {
+        MatrixX &k_mat) const {
         ERL_DEBUG_ASSERT(mat_x1.rows() == mat_x2.rows(), "Sample vectors stored in x1 and x2 should have the same dimension.");
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples1, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples1);
         ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples2, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples2);
@@ -123,11 +123,11 @@ namespace erl::covariance {
     template<int Dim, typename Dtype>
     std::pair<long, long>
     RationalQuadratic<Dim, Dtype>::ComputeKtrainWithGradient(
-        const Eigen::Ref<const Matrix> &mat_x,
+        const Eigen::Ref<const MatrixX> &mat_x,
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
-        Matrix &k_mat,
-        Vector & /*vec_alpha*/) const {
+        MatrixX &k_mat,
+        VectorX & /*vec_alpha*/) const {
 
         long dim;
         if constexpr (Dim == Eigen::Dynamic) {
@@ -240,14 +240,14 @@ namespace erl::covariance {
     template<int Dim, typename Dtype>
     std::pair<long, long>
     RationalQuadratic<Dim, Dtype>::ComputeKtrainWithGradient(
-        const Eigen::Ref<const Matrix> &mat_x,
+        const Eigen::Ref<const MatrixX> &mat_x,
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
-        const Eigen::Ref<const Vector> &vec_var_x,
-        const Eigen::Ref<const Vector> &vec_var_y,
-        const Eigen::Ref<const Vector> &vec_var_grad,
-        Matrix &k_mat,
-        Vector & /*vec_alpha*/) const {
+        const Eigen::Ref<const VectorX> &vec_var_x,
+        const Eigen::Ref<const VectorX> &vec_var_y,
+        const Eigen::Ref<const VectorX> &vec_var_grad,
+        MatrixX &k_mat,
+        VectorX & /*vec_alpha*/) const {
 
         long dim;
         if constexpr (Dim == Eigen::Dynamic) {
@@ -360,13 +360,13 @@ namespace erl::covariance {
     template<int Dim, typename Dtype>
     std::pair<long, long>
     RationalQuadratic<Dim, Dtype>::ComputeKtestWithGradient(
-        const Eigen::Ref<const Matrix> &mat_x1,
+        const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
         const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
-        const Eigen::Ref<const Matrix> &mat_x2,
+        const Eigen::Ref<const MatrixX> &mat_x2,
         const long num_samples2,
         const bool predict_gradient,
-        Matrix &k_mat) const {
+        MatrixX &k_mat) const {
 
         long dim;
         if constexpr (Dim == Eigen::Dynamic) {
