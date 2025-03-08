@@ -4,7 +4,7 @@
 
 namespace erl::covariance {
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     class RadialBiasFunction : public Covariance<Dtype> {
         // ref: https://en.wikipedia.org/wiki/Radial_basis_function_kernel
     public:
@@ -68,15 +68,15 @@ namespace erl::covariance {
             MatrixX &mat_k) const override;
     };
 
-    using RadialBiasFunction1d = RadialBiasFunction<1, double>;
-    using RadialBiasFunction2d = RadialBiasFunction<2, double>;
-    using RadialBiasFunction3d = RadialBiasFunction<3, double>;
-    using RadialBiasFunctionXd = RadialBiasFunction<Eigen::Dynamic, double>;
+    using RadialBiasFunction1d = RadialBiasFunction<double, 1>;
+    using RadialBiasFunction2d = RadialBiasFunction<double, 2>;
+    using RadialBiasFunction3d = RadialBiasFunction<double, 3>;
+    using RadialBiasFunctionXd = RadialBiasFunction<double, Eigen::Dynamic>;
 
-    using RadialBiasFunction1f = RadialBiasFunction<1, float>;
-    using RadialBiasFunction2f = RadialBiasFunction<2, float>;
-    using RadialBiasFunction3f = RadialBiasFunction<3, float>;
-    using RadialBiasFunctionXf = RadialBiasFunction<Eigen::Dynamic, float>;
+    using RadialBiasFunction1f = RadialBiasFunction<float, 1>;
+    using RadialBiasFunction2f = RadialBiasFunction<float, 2>;
+    using RadialBiasFunction3f = RadialBiasFunction<float, 3>;
+    using RadialBiasFunctionXf = RadialBiasFunction<float, Eigen::Dynamic>;
 
 }  // namespace erl::covariance
 

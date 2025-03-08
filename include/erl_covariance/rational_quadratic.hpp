@@ -4,7 +4,7 @@
 
 namespace erl::covariance {
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     class RationalQuadratic : public Covariance<Dtype> {
         // ref: https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RationalQuadratic.html
     public:
@@ -70,15 +70,15 @@ namespace erl::covariance {
             MatrixX &k_mat) const override;
     };
 
-    using RationalQuadratic1d = RationalQuadratic<1, double>;
-    using RationalQuadratic2d = RationalQuadratic<2, double>;
-    using RationalQuadratic3d = RationalQuadratic<3, double>;
-    using RationalQuadraticXd = RationalQuadratic<Eigen::Dynamic, double>;
+    using RationalQuadratic1d = RationalQuadratic<double, 1>;
+    using RationalQuadratic2d = RationalQuadratic<double, 2>;
+    using RationalQuadratic3d = RationalQuadratic<double, 3>;
+    using RationalQuadraticXd = RationalQuadratic<double, Eigen::Dynamic>;
 
-    using RationalQuadratic1f = RationalQuadratic<1, float>;
-    using RationalQuadratic2f = RationalQuadratic<2, float>;
-    using RationalQuadratic3f = RationalQuadratic<3, float>;
-    using RationalQuadraticXf = RationalQuadratic<Eigen::Dynamic, float>;
+    using RationalQuadratic1f = RationalQuadratic<float, 1>;
+    using RationalQuadratic2f = RationalQuadratic<float, 2>;
+    using RationalQuadratic3f = RationalQuadratic<float, 3>;
+    using RationalQuadraticXf = RationalQuadratic<float, Eigen::Dynamic>;
 
 }  // namespace erl::covariance
 

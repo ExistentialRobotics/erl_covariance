@@ -4,7 +4,7 @@
 
 namespace erl::covariance {
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     class ReducedRankMatern32 : public ReducedRankCovariance<Dtype> {
     public:
         using Super = ReducedRankCovariance<Dtype>;
@@ -53,14 +53,14 @@ namespace erl::covariance {
         }
     };
 
-    using ReducedRankMatern32_1d = ReducedRankMatern32<1, double>;
-    using ReducedRankMatern32_2d = ReducedRankMatern32<2, double>;
-    using ReducedRankMatern32_3d = ReducedRankMatern32<3, double>;
-    using ReducedRankMatern32_Xd = ReducedRankMatern32<Eigen::Dynamic, double>;
+    using ReducedRankMatern32_1d = ReducedRankMatern32<double, 1>;
+    using ReducedRankMatern32_2d = ReducedRankMatern32<double, 2>;
+    using ReducedRankMatern32_3d = ReducedRankMatern32<double, 3>;
+    using ReducedRankMatern32_Xd = ReducedRankMatern32<double, Eigen::Dynamic>;
 
-    using ReducedRankMatern32_1f = ReducedRankMatern32<1, float>;
-    using ReducedRankMatern32_2f = ReducedRankMatern32<2, float>;
-    using ReducedRankMatern32_3f = ReducedRankMatern32<3, float>;
-    using ReducedRankMatern32_Xf = ReducedRankMatern32<Eigen::Dynamic, float>;
+    using ReducedRankMatern32_1f = ReducedRankMatern32<float, 1>;
+    using ReducedRankMatern32_2f = ReducedRankMatern32<float, 2>;
+    using ReducedRankMatern32_3f = ReducedRankMatern32<float, 3>;
+    using ReducedRankMatern32_Xf = ReducedRankMatern32<float, Eigen::Dynamic>;
 
 }  // namespace erl::covariance

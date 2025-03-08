@@ -7,9 +7,10 @@ namespace erl::covariance {
         return std::pow(1 + squared_norm * a, -b);
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RationalQuadratic<Dim, Dtype>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &k_mat, VectorX & /*vec_alpha*/) const {
+    RationalQuadratic<Dtype, Dim>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &k_mat, VectorX & /*vec_alpha*/)
+        const {
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
         ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
         long dim;
@@ -43,9 +44,9 @@ namespace erl::covariance {
         return {num_samples, num_samples};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RationalQuadratic<Dim, Dtype>::ComputeKtrain(
+    RationalQuadratic<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,
         const Eigen::Ref<const VectorX> &vec_var_y,
         const long num_samples,
@@ -84,9 +85,9 @@ namespace erl::covariance {
         return {num_samples, num_samples};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RationalQuadratic<Dim, Dtype>::ComputeKtest(
+    RationalQuadratic<Dtype, Dim>::ComputeKtest(
         const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
         const Eigen::Ref<const MatrixX> &mat_x2,
@@ -120,9 +121,9 @@ namespace erl::covariance {
         return {num_samples1, num_samples2};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RationalQuadratic<Dim, Dtype>::ComputeKtrainWithGradient(
+    RationalQuadratic<Dtype, Dim>::ComputeKtrainWithGradient(
         const Eigen::Ref<const MatrixX> &mat_x,
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
@@ -237,9 +238,9 @@ namespace erl::covariance {
         return {n_rows, n_cols};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RationalQuadratic<Dim, Dtype>::ComputeKtrainWithGradient(
+    RationalQuadratic<Dtype, Dim>::ComputeKtrainWithGradient(
         const Eigen::Ref<const MatrixX> &mat_x,
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
@@ -357,9 +358,9 @@ namespace erl::covariance {
         return {n_rows, n_cols};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RationalQuadratic<Dim, Dtype>::ComputeKtestWithGradient(
+    RationalQuadratic<Dtype, Dim>::ComputeKtestWithGradient(
         const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
         const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,

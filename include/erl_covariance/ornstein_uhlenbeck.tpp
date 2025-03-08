@@ -5,9 +5,9 @@
 #include <cmath>
 
 namespace erl::covariance {
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &k_mat, VectorX & /*vec_y*/) const {
+    OrnsteinUhlenbeck<Dtype, Dim>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &k_mat, VectorX & /*vec_y*/) const {
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
         ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
         long dim;
@@ -38,9 +38,9 @@ namespace erl::covariance {
         return {num_samples, num_samples};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrain(
+    OrnsteinUhlenbeck<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,
         const Eigen::Ref<const VectorX> &vec_var_y,
         const long num_samples,
@@ -78,9 +78,9 @@ namespace erl::covariance {
         return {num_samples, num_samples};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtest(
+    OrnsteinUhlenbeck<Dtype, Dim>::ComputeKtest(
         const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
         const Eigen::Ref<const MatrixX> &mat_x2,
@@ -116,15 +116,15 @@ namespace erl::covariance {
         return {num_samples1, num_samples2};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &, long, Eigen::VectorXl &, MatrixX &, VectorX &) const {
+    OrnsteinUhlenbeck<Dtype, Dim>::ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &, long, Eigen::VectorXl &, MatrixX &, VectorX &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtrainWithGradient(
+    OrnsteinUhlenbeck<Dtype, Dim>::ComputeKtrainWithGradient(
         const Eigen::Ref<const MatrixX> &,
         long,
         Eigen::VectorXl &,
@@ -136,9 +136,9 @@ namespace erl::covariance {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    OrnsteinUhlenbeck<Dim, Dtype>::ComputeKtestWithGradient(
+    OrnsteinUhlenbeck<Dtype, Dim>::ComputeKtestWithGradient(
         const Eigen::Ref<const MatrixX> &,
         long,
         const Eigen::Ref<const Eigen::VectorXl> &,

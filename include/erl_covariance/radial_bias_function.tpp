@@ -1,9 +1,10 @@
 #pragma once
 
 namespace erl::covariance {
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RadialBiasFunction<Dim, Dtype>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &mat_k, VectorX & /*vec_alpha*/) const {
+    RadialBiasFunction<Dtype, Dim>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &mat_k, VectorX & /*vec_alpha*/)
+        const {
         ERL_DEBUG_ASSERT(mat_k.rows() >= num_samples, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), num_samples);
         ERL_DEBUG_ASSERT(mat_k.cols() >= num_samples, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), num_samples);
         long dim;
@@ -36,9 +37,9 @@ namespace erl::covariance {
         return {num_samples, num_samples};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RadialBiasFunction<Dim, Dtype>::ComputeKtrain(
+    RadialBiasFunction<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,
         const Eigen::Ref<const VectorX> &vec_var_y,
         const long num_samples,
@@ -76,9 +77,9 @@ namespace erl::covariance {
         return {num_samples, num_samples};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RadialBiasFunction<Dim, Dtype>::ComputeKtest(
+    RadialBiasFunction<Dtype, Dim>::ComputeKtest(
         const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
         const Eigen::Ref<const MatrixX> &mat_x2,
@@ -111,9 +112,9 @@ namespace erl::covariance {
         return {num_samples1, num_samples2};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RadialBiasFunction<Dim, Dtype>::ComputeKtrainWithGradient(
+    RadialBiasFunction<Dtype, Dim>::ComputeKtrainWithGradient(
         const Eigen::Ref<const MatrixX> &mat_x,
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
@@ -227,9 +228,9 @@ namespace erl::covariance {
         return {n_rows, n_cols};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RadialBiasFunction<Dim, Dtype>::ComputeKtrainWithGradient(
+    RadialBiasFunction<Dtype, Dim>::ComputeKtrainWithGradient(
         const Eigen::Ref<const MatrixX> &mat_x,
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
@@ -346,9 +347,9 @@ namespace erl::covariance {
         return {n_rows, n_cols};
     }
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RadialBiasFunction<Dim, Dtype>::ComputeKtestWithGradient(
+    RadialBiasFunction<Dtype, Dim>::ComputeKtestWithGradient(
         const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
         const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,

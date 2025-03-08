@@ -4,7 +4,7 @@
 
 namespace erl::covariance {
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     class OrnsteinUhlenbeck : public Covariance<Dtype> {
         // ref1: https://en.wikipedia.org/wiki/Ornstein%E2%80%93Uhlenbeck_process
         // ref2: https://www.cs.cmu.edu/~epxing/Class/10708-15/notes/10708_scribe_lecture21.pdf
@@ -61,15 +61,15 @@ namespace erl::covariance {
             MatrixX &) const override;
     };
 
-    using OrnsteinUhlenbeck1d = OrnsteinUhlenbeck<1, double>;
-    using OrnsteinUhlenbeck2d = OrnsteinUhlenbeck<2, double>;
-    using OrnsteinUhlenbeck3d = OrnsteinUhlenbeck<3, double>;
-    using OrnsteinUhlenbeckXd = OrnsteinUhlenbeck<Eigen::Dynamic, double>;
+    using OrnsteinUhlenbeck1d = OrnsteinUhlenbeck<double, 1>;
+    using OrnsteinUhlenbeck2d = OrnsteinUhlenbeck<double, 2>;
+    using OrnsteinUhlenbeck3d = OrnsteinUhlenbeck<double, 3>;
+    using OrnsteinUhlenbeckXd = OrnsteinUhlenbeck<double, Eigen::Dynamic>;
 
-    using OrnsteinUhlenbeck1f = OrnsteinUhlenbeck<1, float>;
-    using OrnsteinUhlenbeck2f = OrnsteinUhlenbeck<2, float>;
-    using OrnsteinUhlenbeck3f = OrnsteinUhlenbeck<3, float>;
-    using OrnsteinUhlenbeckXf = OrnsteinUhlenbeck<Eigen::Dynamic, float>;
+    using OrnsteinUhlenbeck1f = OrnsteinUhlenbeck<float, 1>;
+    using OrnsteinUhlenbeck2f = OrnsteinUhlenbeck<float, 2>;
+    using OrnsteinUhlenbeck3f = OrnsteinUhlenbeck<float, 3>;
+    using OrnsteinUhlenbeckXf = OrnsteinUhlenbeck<float, Eigen::Dynamic>;
 
 }  // namespace erl::covariance
 
