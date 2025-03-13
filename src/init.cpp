@@ -11,11 +11,12 @@ namespace erl::covariance {
 
 #define REGISTER(x) (void) x::Register<x>()
 
-    bool initialized = false;
+    bool initialized = Init();
 
     bool
     Init() {
-        if (initialized) { return true; }
+        static bool initialized_ = false;
+        if (initialized_) { return true; }
         REGISTER(Covariance<double>::Setting);
         REGISTER(Covariance<float>::Setting);
         REGISTER(Matern32_1d);
@@ -61,7 +62,7 @@ namespace erl::covariance {
         REGISTER(ReducedRankMatern32_3f);
         REGISTER(ReducedRankMatern32_Xf);
         ERL_INFO("erl_covariance initialized");
-        initialized = true;
+        initialized_ = true;
         return true;
     }
 }  // namespace erl::covariance

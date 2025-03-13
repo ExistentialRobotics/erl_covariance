@@ -4,7 +4,7 @@
 
 namespace erl::covariance {
 
-    template<int Dim, typename Dtype>
+    template<typename Dtype, int Dim>
     class Matern32 : public Covariance<Dtype> {
     public:
         using Super = Covariance<Dtype>;
@@ -67,15 +67,15 @@ namespace erl::covariance {
             MatrixX &mat_k) const override;
     };
 
-    using Matern32_1d = Matern32<1, double>;
-    using Matern32_2d = Matern32<2, double>;
-    using Matern32_3d = Matern32<3, double>;
-    using Matern32_Xd = Matern32<Eigen::Dynamic, double>;
+    using Matern32_1d = Matern32<double, 1>;
+    using Matern32_2d = Matern32<double, 2>;
+    using Matern32_3d = Matern32<double, 3>;
+    using Matern32_Xd = Matern32<double, Eigen::Dynamic>;
 
-    using Matern32_1f = Matern32<1, float>;
-    using Matern32_2f = Matern32<2, float>;
-    using Matern32_3f = Matern32<3, float>;
-    using Matern32_Xf = Matern32<Eigen::Dynamic, float>;
+    using Matern32_1f = Matern32<float, 1>;
+    using Matern32_2f = Matern32<float, 2>;
+    using Matern32_3f = Matern32<float, 3>;
+    using Matern32_Xf = Matern32<float, Eigen::Dynamic>;
 
 }  // namespace erl::covariance
 
