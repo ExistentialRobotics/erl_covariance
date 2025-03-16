@@ -19,7 +19,7 @@ namespace erl::covariance {
         using MatrixX = Eigen::MatrixX<Dtype>;
         using VectorX = Eigen::VectorX<Dtype>;
 
-        struct Setting : Super::Setting {
+        struct Setting : common::Yamlable<Setting, typename Super::Setting> {
             long max_num_basis = -1;    // maximum number of basis functions per dimension, -1 means no limit
             Eigen::VectorXl num_basis;  // number of basis functions per dimension
             VectorX boundaries;         // boundaries for the basis functions per dimension

@@ -13,8 +13,9 @@ namespace erl::covariance {
             const long x_dim = num_basis.size();
             const long total_size = num_basis.prod();
 
-            ERL_ASSERTM(num_basis.size() == boundaries.size(), "num_basis size ({}) does not match boundaries size ({})", num_basis.size(), boundaries.size());
-            ERL_WARN_COND(num_basis.size() != x_dim, "num_basis size ({}) does not match x_dim ({})", num_basis.size(), x_dim);
+            ERL_ASSERTM(x_dim == boundaries.size(), "num_basis size ({}) does not match boundaries size ({})", x_dim, boundaries.size());
+            ERL_ASSERTM((num_basis.array() > 0).all(), "num_basis should be > 0.");
+            ERL_ASSERTM((boundaries.array() > 0).all(), "boundaries should be > 0.");
 
             m_frequencies_.resize(x_dim, total_size);
             const Eigen::VectorXl strides = common::ComputeFStrides<long>(num_basis, 1);
@@ -53,7 +54,7 @@ namespace erl::covariance {
     template<typename Dtype>
     YAML::Node
     ReducedRankCovariance<Dtype>::Setting::YamlConvertImpl::encode(const Setting &setting) {
-        YAML::Node node = Super::Setting::AsYamlNode();
+        YAML::Node node = Super::Setting::YamlConvertImpl::encode(setting);
         node["max_num_basis"] = setting.max_num_basis;
         node["num_basis"] = setting.num_basis;
         node["boundaries"] = setting.boundaries;
@@ -64,7 +65,7 @@ namespace erl::covariance {
     template<typename Dtype>
     bool
     ReducedRankCovariance<Dtype>::Setting::YamlConvertImpl::decode(const YAML::Node &node, Setting &setting) {
-        if (!Super::Setting::FromYamlNode(node)) { return false; }
+        if (!Super::Setting::YamlConvertImpl::decode(node, setting)) { return false; }
         setting.max_num_basis = node["max_num_basis"].as<long>();
         setting.num_basis = node["num_basis"].as<Eigen::VectorXl>();
         setting.boundaries = node["boundaries"].as<VectorX>();
@@ -231,7 +232,7 @@ namespace erl::covariance {
                     acc_mat_k_ij += mat_k_ij;
                     mat_k_ij = acc_mat_k_ij;
                 }
-                mat_k(j, i) = mat_k_ij;
+                mat_k(i, j) = mat_k_ij;
             }
         }
 
@@ -283,6 +284,7 @@ namespace erl::covariance {
 
         const MatrixX phi = ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
         const long m = phi.rows();
+        const long n_grad = (m - num_samples) / dims;  // m = num_samples + n_grad * dims
         VectorX inv_sigmas(m);
         const VectorX y = vec_alpha.head(m);
         const VectorX inv_spectral_densities = m_setting_->GetInvSpectralDensities();
@@ -294,7 +296,9 @@ namespace erl::covariance {
 
         for (long i = 0; i < num_samples; ++i) {
             inv_sigmas[i] = 1.0 / (vec_var_x[i] + vec_var_y[i]);
-            if (long &flag = vec_grad_flags[i]; flag > 0) { inv_sigmas[flag] = 1.0 / vec_var_grad[i]; }
+            if (long j = vec_grad_flags[i]; j > 0) {
+                for (; j < m; j += n_grad) { inv_sigmas[j] = 1.0 / vec_var_grad[i]; }
+            }
         }
 
         // phi = [phi_1, phi_2, ..., phi_e]
@@ -335,7 +339,7 @@ namespace erl::covariance {
                     acc_mat_k_ij += mat_k_ij;
                     mat_k_ij = acc_mat_k_ij;
                 }
-                mat_k(j, i) = mat_k_ij;
+                mat_k(i, j) = mat_k_ij;
             }
         }
 
