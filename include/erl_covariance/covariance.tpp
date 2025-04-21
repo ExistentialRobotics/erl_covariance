@@ -78,6 +78,43 @@ namespace erl::covariance {
     }
 
     template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtestSparse(
+        const Eigen::Ref<const MatrixX> &mat_x1,
+        const long num_samples1,
+        const Eigen::Ref<const MatrixX> &mat_x2,
+        const long num_samples2,
+        const Dtype zero_threshold,
+        SparseMatrix &mat_k) const {
+        // default implementation, not efficient
+        const auto [rows, cols] = GetMinimumKtestSize(num_samples1, 0, 0, num_samples2, false);
+        MatrixX mat_k_dense(rows, cols);
+        (void) ComputeKtest(mat_x1, num_samples1, mat_x2, num_samples2, mat_k_dense);
+        mat_k = mat_k_dense.sparseView(zero_threshold);
+        return {rows, cols};
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtestWithGradientSparse(
+        const Eigen::Ref<const MatrixX> &mat_x1,
+        const long num_samples1,
+        const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
+        const Eigen::Ref<const MatrixX> &mat_x2,
+        const long num_samples2,
+        const bool predict_gradient,
+        const Dtype zero_threshold,
+        SparseMatrix &mat_k) const {
+
+        const long num_train_samples_with_gradient = vec_grad1_flags.head(num_samples1).count();
+        const auto [rows, cols] = GetMinimumKtestSize(num_samples1, num_train_samples_with_gradient, mat_x1.rows(), num_samples2, predict_gradient);
+        MatrixX mat_k_dense(rows, cols);
+        (void) ComputeKtestWithGradient(mat_x1, num_samples1, vec_grad1_flags, mat_x2, num_samples2, predict_gradient, mat_k_dense);
+        mat_k = mat_k_dense.sparseView(zero_threshold);
+        return {rows, cols};
+    }
+
+    template<typename Dtype>
     bool
     Covariance<Dtype>::operator==(const Covariance &other) const {
         if (m_setting_ == nullptr && other.m_setting_ != nullptr) { return false; }

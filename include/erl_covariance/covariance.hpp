@@ -17,6 +17,7 @@ namespace erl::covariance {
     class Covariance {
     public:
         using MatrixX = Eigen::MatrixX<Dtype>;
+        using SparseMatrix = Eigen::SparseMatrix<Dtype>;
         using VectorX = Eigen::VectorX<Dtype>;
 
         // structure for holding the parameters
@@ -104,6 +105,15 @@ namespace erl::covariance {
             const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
+        ComputeKtestSparse(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples1,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_samples2,
+            Dtype zero_threshold,
+            SparseMatrix &mat_k) const;
+
+        [[nodiscard]] virtual std::pair<long, long>
         ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, MatrixX &mat_k, VectorX &vec_alpha)
             const = 0;
 
@@ -138,6 +148,17 @@ namespace erl::covariance {
             long num_samples2,
             bool predict_gradient,
             MatrixX &mat_k) const = 0;
+
+        [[nodiscard]] virtual std::pair<long, long>
+        ComputeKtestWithGradientSparse(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples1,
+            const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_samples2,
+            bool predict_gradient,
+            Dtype zero_threshold,
+            SparseMatrix &mat_k) const;
 
         [[nodiscard]] bool
         operator==(const Covariance &other) const;

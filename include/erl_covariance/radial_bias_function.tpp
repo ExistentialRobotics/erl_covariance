@@ -30,8 +30,12 @@ namespace erl::covariance {
                     r += dx * dx;
                 }
                 Dtype &k_ij = mat_k_j_ptr[i];
-                k_ij = alpha * std::exp(-a * r);  // mat_k(i, j)
-                *k_ji_ptr = k_ij;                 // mat_k(j, i) = k_ij;
+                if (alpha == 1.0f) {
+                    k_ij = std::exp(-a * r);
+                } else {
+                    k_ij = alpha * std::exp(-a * r);  // mat_k(i, j)
+                }
+                *k_ji_ptr = k_ij;  // mat_k(j, i) = k_ij;
             }
         }
         return {num_samples, num_samples};
@@ -54,7 +58,7 @@ namespace erl::covariance {
             dim = Dim;
         }
         const Dtype alpha = Super::m_setting_->alpha;
-        const Dtype a = 0.5 / (Super::m_setting_->scale * Super::m_setting_->scale);
+        const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
         const long stride = mat_k.outerStride();
         for (long j = 0; j < num_samples; ++j) {
             Dtype *mat_k_j_ptr = mat_k.col(j).data();   // use raw pointer to improve performance
@@ -64,13 +68,17 @@ namespace erl::covariance {
             Dtype *k_ji_ptr = &mat_k(j, j + 1);  // mat_k(j, i)
             for (long i = j + 1; i < num_samples; ++i, k_ji_ptr += stride) {
                 const Dtype *xi_ptr = mat_x.col(i).data();
-                Dtype r = 0.0;
+                Dtype r = 0.0f;
                 for (long k = 0; k < dim; ++k) {
                     const Dtype dx = xi_ptr[k] - xj_ptr[k];
                     r += dx * dx;
                 }
                 Dtype &k_ij = mat_k_j_ptr[i];  // mat_k(i, j)
-                k_ij = alpha * std::exp(-a * r);
+                if (alpha == 1.0f) {
+                    k_ij = std::exp(-a * r);
+                } else {
+                    k_ij = alpha * std::exp(-a * r);
+                }
                 *k_ji_ptr = k_ij;  // mat_k(j, i) = k_ij;
             }
         }
@@ -94,19 +102,64 @@ namespace erl::covariance {
         } else {
             dim = Dim;
         }
-        const Dtype a = 0.5 / (Super::m_setting_->scale * Super::m_setting_->scale);
+        const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
         const Dtype alpha = Super::m_setting_->alpha;
         for (long j = 0; j < num_samples2; ++j) {
             const Dtype *x2_ptr = mat_x2.col(j).data();
             Dtype *col_j_ptr = mat_k.col(j).data();
             for (long i = 0; i < num_samples1; ++i) {
                 const Dtype *x1_ptr = mat_x1.col(i).data();
-                Dtype r = 0.0;
+                Dtype r = 0.0f;
                 for (long k = 0; k < dim; ++k) {
                     const Dtype dx = x1_ptr[k] - x2_ptr[k];
                     r += dx * dx;
                 }
-                col_j_ptr[i] = alpha * std::exp(-a * r);
+                if (alpha == 1.0f) {
+                    col_j_ptr[i] = std::exp(-a * r);
+                } else {
+                    col_j_ptr[i] = alpha * std::exp(-a * r);
+                }
+            }
+        }
+        return {num_samples1, num_samples2};
+    }
+
+    template<typename Dtype, int Dim>
+    std::pair<long, long>
+    RadialBiasFunction<Dtype, Dim>::ComputeKtestSparse(
+        const Eigen::Ref<const MatrixX> &mat_x1,
+        const long num_samples1,
+        const Eigen::Ref<const MatrixX> &mat_x2,
+        const long num_samples2,
+        Dtype zero_threshold,
+        SparseMatrix &mat_k) const {
+
+        long dim;
+        if constexpr (Dim == Eigen::Dynamic) {
+            dim = mat_x1.rows();
+        } else {
+            dim = Dim;
+        }
+        const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
+        const Dtype alpha = Super::m_setting_->alpha;
+        const Dtype threshold = std::log(zero_threshold / alpha);
+        mat_k = SparseMatrix(num_samples1, num_samples2);  // initialize sparse matrix
+        for (long j = 0; j < num_samples2; ++j) {
+            const Dtype *x2_ptr = mat_x2.col(j).data();
+            for (long i = 0; i < num_samples1; ++i) {
+                const Dtype *x1_ptr = mat_x1.col(i).data();
+                Dtype r = 0.0f;
+                for (long k = 0; k < dim; ++k) {
+                    const Dtype dx = x1_ptr[k] - x2_ptr[k];
+                    r += dx * dx;
+                }
+                r *= -a;
+                if (r < threshold) { continue; }
+                if (alpha == 1.0f) {
+                    mat_k.insert(i, j) = std::exp(r);
+                } else {
+                    mat_k.insert(i, j) = alpha * std::exp(r);
+                }
             }
         }
         return {num_samples1, num_samples2};
@@ -400,9 +453,11 @@ namespace erl::covariance {
                 }
                 Dtype &k_ij = mat_k_j_ptr[i];      // mat_k(i, j)
                 k_ij = alpha * std::exp(-a * r2);  // cov(f1_i, f2_j)
+                Dtype l2_inv_k_ij = 0.0f;
                 if (predict_gradient) {
+                    l2_inv_k_ij = l2_inv * k_ij;
                     for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) {  // cov(f1_i, df2_j)
-                        mat_k_kj_ptrs[k][i] = l2_inv * k_ij * diff_ij[k];
+                        mat_k_kj_ptrs[k][i] = l2_inv_k_ij * diff_ij[k];
                     }
                 }
 
@@ -413,19 +468,110 @@ namespace erl::covariance {
 
                         // between Dim-k and Dim-k
                         const Dtype &dxk = diff_ij[k];
-                        // mat_k(ki, kj) = cov(df1_i/dx_k, df2_j/dx_k)
-                        mat_k_kj_ptrs[k][ki] = l2_inv * k_ij * (1.0 - l2_inv * dxk * dxk);
+                        mat_k_kj_ptrs[k][ki] = l2_inv_k_ij * (1.0 - l2_inv * dxk * dxk);  // mat_k(ki, kj) = cov(df1_i/dx_k, df2_j/dx_k)
 
                         for (long l = k + 1, li = ki + n_grad, lj = kj + num_samples2; l < dim; ++l, li += n_grad, lj += num_samples2) {
                             // between Dim-k and Dim-l
                             const Dtype &dxl = diff_ij[l];
-                            Dtype &k_ki_lj = mat_k_kj_ptrs[l][li];
-                            k_ki_lj = l2_inv * k_ij * (-l2_inv * dxk * dxl);  // cov(df1_i, df2_j)
-                            mat_k_kj_ptrs[k][li] = k_ki_lj;
+                            Dtype &k_ki_lj = mat_k_kj_ptrs[l][ki];
+                            k_ki_lj = l2_inv_k_ij * (-l2_inv * dxk * dxl);  // mat_k(ki, lj) = cov(df1_i/dx_k, df2_j/dx_l)
+                            mat_k_kj_ptrs[k][li] = k_ki_lj;                 // mat_k(li, kj) = cov(df1_i/dx_l, df2_j/dx_k)
                         }
                     }
                 } else {
-                    for (long k = 0, ki = ki_init; k < dim; ++k, ki += n_grad) { mat_k_j_ptr[ki] = -l2_inv * k_ij * diff_ij[k]; }
+                    for (long k = 0, ki = ki_init; k < dim; ++k, ki += n_grad) { mat_k_j_ptr[ki] = -l2_inv_k_ij * diff_ij[k]; }
+                }
+                ++ki_init;
+            }
+        }
+        return {n_rows, n_cols};
+    }
+
+    template<typename Dtype, int Dim>
+    std::pair<long, long>
+    RadialBiasFunction<Dtype, Dim>::ComputeKtestWithGradientSparse(
+        const Eigen::Ref<const MatrixX> &mat_x1,
+        const long num_samples1,
+        const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
+        const Eigen::Ref<const MatrixX> &mat_x2,
+        const long num_samples2,
+        const bool predict_gradient,
+        const Dtype zero_threshold,
+        SparseMatrix &mat_k) const {
+
+        long dim;
+        if constexpr (Dim == Eigen::Dynamic) {
+            dim = mat_x1.rows();
+        } else {
+            dim = Dim;
+        }
+
+        ERL_DEBUG_ASSERT(mat_x1.rows() == dim, "Each column of mat_x1 should be {}-D vector.", dim);
+        ERL_DEBUG_ASSERT(mat_x2.rows() == dim, "Each column of mat_x2 should be {}-D vector.", dim);
+        const long n_grad = vec_grad1_flags.head(num_samples1).count();
+        const long n_rows = num_samples1 + n_grad * dim;
+        const long n_cols = predict_gradient ? num_samples2 * (dim + 1) : num_samples2;
+        ERL_DEBUG_ASSERT(mat_k.rows() >= n_rows, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), n_rows);
+        ERL_DEBUG_ASSERT(mat_k.cols() >= n_cols, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), n_cols);
+
+        const Dtype alpha = Super::m_setting_->alpha;
+        const Dtype l2_inv = 1.0 / (Super::m_setting_->scale * Super::m_setting_->scale);
+        const Dtype a = 0.5 * l2_inv;
+        const Dtype threshold = std::log(zero_threshold / alpha);
+
+        // buffer to store the difference between x1_i and x2_j
+        Eigen::Vector<Dtype, Dim> diff_ij;  // avoid memory allocation on the heap
+        mat_k = SparseMatrix(n_rows, n_cols);
+        for (long j = 0; j < num_samples2; ++j) {
+            const Dtype *x2_j_ptr = mat_x2.col(j).data();
+            for (long i = 0, ki_init = num_samples1; i < num_samples1; ++i) {
+                const Dtype *x1_i_ptr = mat_x1.col(i).data();
+                Dtype r2 = 0;
+                for (long k = 0; k < dim; ++k) {
+                    Dtype &dx = diff_ij[k];
+                    dx = x1_i_ptr[k] - x2_j_ptr[k];
+                    r2 += dx * dx;
+                }
+                r2 *= -a;
+                if (r2 < threshold) { continue; }  // skip if r2 is too small
+
+                Dtype k_ij;
+                if (alpha == 1.0f) {
+                    k_ij = std::exp(r2);
+                } else {
+                    k_ij = alpha * std::exp(r2);
+                }
+                mat_k.insert(i, j) = k_ij;  // mat_k(i, j) = cov(f1_i, f2_j)
+
+                Dtype l2_inv_k_ij = 0.0f;
+                if (predict_gradient) {
+                    l2_inv_k_ij = l2_inv * k_ij;
+                    for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) {  // cov(f1_i, df2_j/dx_k)
+                        mat_k.insert(i, kj) = l2_inv_k_ij * diff_ij[k];
+                    }
+                }
+
+                if (!vec_grad1_flags[i]) { continue; }
+                if (predict_gradient) {
+                    for (long k = 0, ki = ki_init, kj = j + num_samples2; k < dim; ++k, ki += n_grad, kj += num_samples2) {
+                        // mat_k(ki, j) = -mat_k(i, kj)
+                        // cov(df1_i/dx_k, f2_j) = -cov(f1_i, df2_j/dx_k)
+                        mat_k.insert(ki, j) = -mat_k.coeff(i, kj);
+
+                        // between Dim-k and Dim-k
+                        const Dtype &dxk = diff_ij[k];
+                        mat_k.insert(ki, kj) = l2_inv_k_ij * (1.0 - l2_inv * dxk * dxk);  // mat_k(ki, kj) = cov(df1_i/dx_k, df2_j/dx_k)
+
+                        for (long l = k + 1, li = ki + n_grad, lj = kj + num_samples2; l < dim; ++l, li += n_grad, lj += num_samples2) {
+                            // between Dim-k and Dim-l
+                            const Dtype &dxl = diff_ij[l];
+                            const Dtype k_ki_lj = l2_inv_k_ij * (-l2_inv * dxk * dxl);
+                            mat_k.insert(ki, lj) = k_ki_lj;  // mat_k(li, lj) = cov(df1_i/dx_k, df2_j/dx_l)
+                            mat_k.insert(li, kj) = k_ki_lj;  // mat_k(li, kj) = cov(df1_i/dx_l, df2_j/dx_k)
+                        }
+                    }
+                } else {
+                    for (long k = 0, ki = ki_init; k < dim; ++k, ki += n_grad) { mat_k.insert(ki, j) = -l2_inv_k_ij * diff_ij[k]; }
                 }
                 ++ki_init;
             }

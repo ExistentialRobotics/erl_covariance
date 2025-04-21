@@ -11,6 +11,7 @@ namespace erl::covariance {
         using Super = Covariance<Dtype>;
         using Setting = typename Super::Setting;
         using MatrixX = Eigen::MatrixX<Dtype>;
+        using SparseMatrix = Eigen::SparseMatrix<Dtype>;
         using VectorX = Eigen::VectorX<Dtype>;
 
         explicit RadialBiasFunction(std::shared_ptr<Setting> setting)
@@ -37,6 +38,15 @@ namespace erl::covariance {
         [[nodiscard]] std::pair<long, long>
         ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &mat_k)
             const override;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtestSparse(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples1,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_samples2,
+            Dtype zero_threshold,
+            SparseMatrix &mat_k) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
@@ -66,6 +76,17 @@ namespace erl::covariance {
             long num_samples2,
             bool predict_gradient,
             MatrixX &mat_k) const override;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtestWithGradientSparse(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples1,
+            const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_samples2,
+            bool predict_gradient,
+            Dtype zero_threshold,
+            SparseMatrix &mat_k) const override;
     };
 
     using RadialBiasFunction1d = RadialBiasFunction<double, 1>;
