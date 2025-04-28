@@ -294,7 +294,7 @@ TEST(Matern32, 3D) {
         erl::common::BlockTimer<std::chrono::milliseconds> timer("Matern32Old");
         (void) timer;
         for (long i = 0; i < n_tests; ++i) {
-            Eigen::VectorXd alpha;
+            Eigen::MatrixXd alpha;
             (void) matern32_old->ComputeKtrainWithGradient(mat_x, mat_x.cols(), vec_grad_flags, k_mat1, alpha);
         }
     }

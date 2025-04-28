@@ -6,7 +6,6 @@ namespace erl::covariance {
     Covariance<Dtype>::Setting::YamlConvertImpl::encode(const Setting &setting) {
         YAML::Node node(YAML::NodeType::Map);
         node["x_dim"] = setting.x_dim;
-        node["alpha"] = setting.alpha;
         node["scale"] = setting.scale;
         node["scale_mix"] = setting.scale_mix;
         node["weights"] = setting.weights;
@@ -18,7 +17,6 @@ namespace erl::covariance {
     Covariance<Dtype>::Setting::YamlConvertImpl::decode(const YAML::Node &node, Setting &setting) {
         if (!node.IsMap()) { return false; }
         setting.x_dim = node["x_dim"].as<int>();
-        setting.alpha = node["alpha"].as<Dtype>();
         setting.scale = node["scale"].as<Dtype>();
         setting.scale_mix = node["scale_mix"].as<Dtype>();
         setting.weights = node["weights"].as<VectorX>();

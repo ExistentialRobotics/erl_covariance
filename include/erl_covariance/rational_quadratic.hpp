@@ -4,7 +4,7 @@
 
 namespace erl::covariance {
 
-    template<typename Dtype, int Dim>
+    template<typename Dtype, int /*Dim*/>
     class RationalQuadratic : public Covariance<Dtype> {
         // ref: https://scikit-learn.org/stable/modules/generated/sklearn.gaussian_process.kernels.RationalQuadratic.html
     public:
@@ -13,20 +13,16 @@ namespace erl::covariance {
         using MatrixX = Eigen::MatrixX<Dtype>;
         using VectorX = Eigen::VectorX<Dtype>;
 
-        explicit RationalQuadratic(std::shared_ptr<Setting> setting)
-            : Super(std::move(setting)) {
-            ERL_DEBUG_ASSERT(Dim == Eigen::Dynamic || Super::m_setting_->x_dim == Dim, "setting->x_dim should be {}.", Dim);
-            ERL_WARN_ONCE_COND(Dim == Eigen::Dynamic, "Dim is Eigen::Dynamic, it may cause performance issue.");
-            Super::m_setting_->x_dim = Dim;
-        }
+        explicit RationalQuadratic(std::shared_ptr<Setting> setting);
 
         [[nodiscard]] std::string
-        GetCovarianceType() const override {
-            return type_name<RationalQuadratic>();
-        }
+        GetCovarianceType() const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &k_mat, VectorX & /*vec_alpha*/) const override;
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &k_mat, MatrixX & /*mat_alpha*/) override;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k);
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(
@@ -34,7 +30,10 @@ namespace erl::covariance {
             const Eigen::Ref<const VectorX> &vec_var_y,
             long num_samples,
             MatrixX &k_mat,
-            VectorX & /*vec_alpha*/) const override;
+            MatrixX & /*mat_alpha*/) override;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const Eigen::Ref<const VectorX> &vec_var_y, long num_samples, MatrixX &mat_k);
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &k_mat)
@@ -46,7 +45,10 @@ namespace erl::covariance {
             long num_samples,
             Eigen::VectorXl &vec_grad_flags,
             MatrixX &k_mat,
-            VectorX & /*vec_alpha*/) const override;
+            MatrixX & /*mat_alpha*/) override;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, MatrixX &mat_k);
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
@@ -57,7 +59,17 @@ namespace erl::covariance {
             const Eigen::Ref<const VectorX> &vec_var_y,
             const Eigen::Ref<const VectorX> &vec_var_grad,
             MatrixX &k_mat,
-            VectorX & /*vec_alpha*/) const override;
+            MatrixX & /*mat_alpha*/) override;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtrainWithGradient(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            long num_samples,
+            Eigen::VectorXl &vec_grad_flags,
+            const Eigen::Ref<const VectorX> &vec_var_x,
+            const Eigen::Ref<const VectorX> &vec_var_y,
+            const Eigen::Ref<const VectorX> &vec_var_grad,
+            MatrixX &mat_k);
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(

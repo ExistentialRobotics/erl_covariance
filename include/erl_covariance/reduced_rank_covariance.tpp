@@ -4,8 +4,10 @@ namespace erl::covariance {
     template<typename Dtype>
     void
     ReducedRankCovariance<Dtype>::Setting::BuildSpectralDensities(const std::function<VectorX(const VectorX &)> &kernel_spectral_density_func) {
+        // double-check locking. see https://en.wikipedia.org/wiki/Double-checked_locking
+        // double-check locking may not work correctly before C++11 due to reordering of instructions.
+        // but it is safe here.
         if (m_is_built_) { return; }  // already built
-
         {
             std::lock_guard<std::mutex> lock(m_mutex_);  // lock for building spectral densities
             if (m_is_built_) { return; }                 // already built by another thread
@@ -52,6 +54,33 @@ namespace erl::covariance {
     }
 
     template<typename Dtype>
+    void
+    ReducedRankCovariance<Dtype>::Setting::ResetSpectralDensities() {
+        m_is_built_ = false;
+    }
+
+    template<typename Dtype>
+    const typename ReducedRankCovariance<Dtype>::MatrixX &
+    ReducedRankCovariance<Dtype>::Setting::GetFrequencies() const {
+        ERL_DEBUG_ASSERT(m_is_built_, "Spectral densities are not built yet");
+        return m_frequencies_;
+    }
+
+    template<typename Dtype>
+    const typename ReducedRankCovariance<Dtype>::VectorX &
+    ReducedRankCovariance<Dtype>::Setting::GetSpectralDensities() const {
+        ERL_DEBUG_ASSERT(m_is_built_, "Spectral densities are not built yet");
+        return m_spectral_densities_;
+    }
+
+    template<typename Dtype>
+    const typename ReducedRankCovariance<Dtype>::VectorX &
+    ReducedRankCovariance<Dtype>::Setting::GetInvSpectralDensities() const {
+        ERL_DEBUG_ASSERT(m_is_built_, "Spectral densities are not built yet");
+        return m_inv_spectral_densities_;
+    }
+
+    template<typename Dtype>
     YAML::Node
     ReducedRankCovariance<Dtype>::Setting::YamlConvertImpl::encode(const Setting &setting) {
         YAML::Node node = Super::Setting::YamlConvertImpl::encode(setting);
@@ -74,31 +103,43 @@ namespace erl::covariance {
     }
 
     template<typename Dtype>
+    ReducedRankCovariance<Dtype>::ReducedRankCovariance(std::shared_ptr<Setting> setting)
+        : Super(setting),
+          m_setting_(std::move(setting)) {
+        ERL_WARN_COND(
+            m_setting_->boundaries.size() != m_setting_->x_dim,
+            "Boundaries size ({}) does not match x_dim ({})",
+            m_setting_->boundaries.size(),
+            m_setting_->x_dim);
+    }
+
+    template<typename Dtype>
     std::pair<long, long>
-    ReducedRankCovariance<Dtype>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, VectorX &vec_alpha) const {
+    ReducedRankCovariance<Dtype>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, MatrixX &mat_alpha) {
         long dims = m_setting_->x_dim;
-        if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the number of rows of mat_x
-        const long e = m_setting_->GetFrequencies().cols();
+        if (dims <= 0) { dims = mat_x.rows(); }              // if x_dim is not set, use the rows of mat_x
+        const long e = m_setting_->GetFrequencies().cols();  // number of frequencies
 
         ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
         ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
+        ERL_DEBUG_ASSERT(mat_alpha.rows() >= e, "mat_alpha.rows() = {}, it should be >= {}.", mat_alpha.rows(), e);
 
         const MatrixX &phi = ComputeEigenFunctions(mat_x, dims, num_samples);  // (N, E)
-        auto mat_k_block = mat_k.topLeftCorner(e, e);
-        mat_k_block << phi.transpose() * phi;
-        auto vec_alpha_block = vec_alpha.head(e);
-        vec_alpha_block << phi.transpose() * VectorX(vec_alpha.head(num_samples));
+        auto mat_k_block = mat_k.topLeftCorner(e, e);                          // (E, E)
+        mat_k_block << phi.transpose() * phi;                                  // (E, N) * (N, E) = (E, E)
+
+        if (m_alpha_.size() == 0) { m_alpha_ = MatrixX::Zero(e, mat_alpha.cols()); }  // (E, D)
+        auto phi_alpha = mat_alpha.topRows(e);                                        // (E, D)
+        phi_alpha << phi.transpose() * MatrixX(mat_alpha.topRows(num_samples));       // (E, N) * (N, D) = (E, D)
 
         if (m_setting_->accumulated) {
             auto acc_mat_k = const_cast<MatrixX &>(m_mat_k_);
-            if (acc_mat_k.size() == 0) { acc_mat_k = MatrixX ::Constant(e, e, 0.0); }
+            if (acc_mat_k.size() == 0) { acc_mat_k = MatrixX::Constant(e, e, 0.0f); }
             acc_mat_k += mat_k_block;
             mat_k_block << acc_mat_k;
 
-            auto acc_vec_alpha = const_cast<VectorX &>(m_vec_alpha_);
-            if (acc_vec_alpha.size() == 0) { acc_vec_alpha = VectorX::Constant(e, 0.0); }
-            acc_vec_alpha += vec_alpha_block;
-            vec_alpha_block << acc_vec_alpha;
+            m_alpha_ += phi_alpha;
+            phi_alpha << m_alpha_;
         }
         return {e, e};
     }
@@ -110,64 +151,62 @@ namespace erl::covariance {
         const Eigen::Ref<const VectorX> &vec_var_y,
         long num_samples,
         MatrixX &mat_k,
-        VectorX &vec_alpha) const {
+        MatrixX &mat_alpha) {
 
         long dims = m_setting_->x_dim;
-        if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the number of rows of mat_x
+        if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the rows of mat_x
         const long e = m_setting_->GetFrequencies().cols();
 
         ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
         ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
+        ERL_DEBUG_ASSERT(mat_alpha.rows() >= e, "mat_alpha.rows() = {}, it should be >= {}.", mat_alpha.rows(), e);
 
-        const MatrixX phi = ComputeEigenFunctions(mat_x, dims, num_samples);  // (num_samples, e)
-        const VectorX inv_sigmas = vec_var_y.head(num_samples).cwiseInverse();
-        const VectorX y = vec_alpha.head(num_samples);
+        const MatrixX phi = ComputeEigenFunctions(mat_x, dims, num_samples);    // (num_samples, E)
+        const VectorX inv_sigmas = vec_var_y.head(num_samples).cwiseInverse();  // (num_samples, )
+        const MatrixX mat_y = mat_alpha.topRows(num_samples);                   // (num_samples, D)
         const VectorX inv_spectral_densities = m_setting_->GetInvSpectralDensities();
         const bool accumulated = m_setting_->accumulated;
 
+        if (m_alpha_.size() == 0) { m_alpha_ = MatrixX::Zero(e, mat_alpha.cols()); }  // (E, D)
         VectorX inv_sigmas_phi_i(num_samples);
-        auto acc_mat_k = const_cast<MatrixX &>(m_mat_k_);
-        auto acc_vec_alpha = const_cast<VectorX &>(m_vec_alpha_);
 
         // phi = [phi_1, phi_2, ..., phi_e]
         // inv_sigmas = [1/var_y_1, 1/var_y_2, ..., 1/var_y_N]
         // inv_sigmas_phi = [inv_sigmas .* phi_1, inv_sigmas .* phi_2, ..., inv_sigmas .* phi_N]
-        Dtype *acc_alpha = accumulated ? acc_vec_alpha.data() : nullptr;
-        for (long i = 0; i < e; ++i) {
-            const Dtype *phi_i = phi.col(i).data();
-            Dtype &alpha_i = vec_alpha[i];
-            alpha_i = 0;
-            for (long j = 0; j < num_samples; ++j) {
-                Dtype &inv_sigmas_phi_ij = inv_sigmas_phi_i[j];
-                inv_sigmas_phi_ij = inv_sigmas[j] * phi_i[j];
-                alpha_i += inv_sigmas_phi_ij * y[j];
-            }
-            if (acc_alpha != nullptr) {
-                Dtype &acc_alpha_i = acc_alpha[i];
-                acc_alpha_i += alpha_i;
-                alpha_i = acc_alpha_i;
-            }
+        for (long col = 0; col < e; ++col) {
+            auto phi_col = phi.col(col);
 
-            Dtype *mat_k_i = mat_k.col(i).data();
-            Dtype *acc_mat_k_i = accumulated ? acc_mat_k.col(i).data() : nullptr;
-            Dtype &mat_k_ii = mat_k_i[i];
-            mat_k_ii = inv_sigmas_phi_i.dot(phi.col(i));
-            if (acc_mat_k_i != nullptr) {
-                Dtype &acc_mat_k_ii = acc_mat_k_i[i];
-                acc_mat_k_ii += mat_k_ii;
-                mat_k_ii = acc_mat_k_ii;
-            }
-            mat_k_ii += inv_spectral_densities[i];
-
-            for (long j = i + 1; j < e; ++j) {
-                Dtype &mat_k_ij = mat_k_i[j];
-                mat_k_ij = inv_sigmas_phi_i.dot(phi.col(j));
-                if (acc_mat_k_i != nullptr) {
-                    Dtype &acc_mat_k_ij = acc_mat_k_i[j];
-                    acc_mat_k_ij += mat_k_ij;
-                    mat_k_ij = acc_mat_k_ij;
+            for (long d = 0; d < mat_y.cols(); ++d) {
+                Dtype &alpha = mat_alpha(col, d);
+                alpha = inv_sigmas.cwiseProduct(phi_col).dot(mat_y.col(d));
+                if (accumulated) {
+                    Dtype &acc_alpha = m_alpha_(col, d);
+                    acc_alpha += alpha;
+                    alpha = acc_alpha;
                 }
-                mat_k(j, i) = mat_k_ij;
+            }
+
+            Dtype *mat_k_col = mat_k.col(col).data();
+            Dtype *acc_mat_k_col = accumulated ? m_mat_k_.col(col).data() : nullptr;
+
+            Dtype &mat_k_cc = mat_k_col[col];
+            mat_k_cc = inv_sigmas_phi_i.dot(phi_col);
+            if (acc_mat_k_col != nullptr) {
+                Dtype &acc_mat_k_cc = acc_mat_k_col[col];
+                acc_mat_k_cc += mat_k_cc;
+                mat_k_cc = acc_mat_k_cc;
+            }
+            mat_k_cc += inv_spectral_densities[col];
+
+            for (long row = col + 1; row < e; ++row) {
+                Dtype &mat_k_rc = mat_k_col[row];
+                mat_k_rc = inv_sigmas_phi_i.dot(phi.col(row));
+                if (acc_mat_k_col != nullptr) {
+                    Dtype &acc_mat_k_rc = acc_mat_k_col[row];
+                    acc_mat_k_rc += mat_k_rc;
+                    mat_k_rc = acc_mat_k_rc;
+                }
+                mat_k(col, row) = mat_k_rc;
             }
         }
 
@@ -181,85 +220,61 @@ namespace erl::covariance {
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
         MatrixX &mat_k,
-        VectorX &vec_alpha) const {
+        MatrixX &mat_alpha) {
 
         long dims = m_setting_->x_dim;
-        if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the number of rows of mat_x
+        if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the rows of mat_x
         const long e = m_setting_->GetFrequencies().cols();
 
         ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
         ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
+        ERL_DEBUG_ASSERT(mat_alpha.rows() >= e, "mat_alpha.rows() = {}, it should be >= {}.", mat_alpha.rows(), e);
 
         const MatrixX phi = ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
-        const long m = phi.rows();
-        const VectorX y = vec_alpha.head(m);
+        const MatrixX mat_y = mat_alpha.topRows(phi.rows());                                              // (m, D)
         const VectorX inv_spectral_densities = m_setting_->GetInvSpectralDensities();
         const bool accumulated = m_setting_->accumulated;
 
-        auto acc_mat_k = const_cast<MatrixX &>(m_mat_k_);
-        auto acc_vec_alpha = const_cast<VectorX &>(m_vec_alpha_);
+        if (m_alpha_.size() == 0) { m_alpha_ = MatrixX::Zero(e, mat_alpha.cols()); }  // (e, D)
 
         // phi = [phi_1, phi_2, ..., phi_e]
         // K = phi^T * phi
-        Dtype *acc_alpha = accumulated ? acc_vec_alpha.data() : nullptr;
-        for (long i = 0; i < e; ++i) {
-            const Dtype *phi_i = phi.col(i).data();
-            Dtype &alpha_i = vec_alpha[i];
-            alpha_i = 0;
-            for (long j = 0; j < m; ++j) { alpha_i += phi_i[j] * y[j]; }
-            if (acc_alpha != nullptr) {
-                Dtype &acc_alpha_i = acc_alpha[i];
-                acc_alpha_i += alpha_i;
-                alpha_i = acc_alpha_i;
-            }
+        for (long col = 0; col < e; ++col) {
+            auto phi_col = phi.col(col);
 
-            Dtype *mat_k_i = mat_k.col(i).data();
-            Dtype *acc_mat_k_i = accumulated ? acc_mat_k.col(i).data() : nullptr;
-            Dtype &mat_k_ii = mat_k_i[i];
-            mat_k_ii = phi.col(i).squaredNorm();
-            if (acc_mat_k_i != nullptr) {
-                Dtype &acc_mat_k_ii = acc_mat_k_i[i];
-                acc_mat_k_ii += mat_k_ii;
-                mat_k_ii = acc_mat_k_ii;
-            }
-            mat_k_ii += inv_spectral_densities[i];
-
-            for (long j = i + 1; j < e; ++j) {
-                Dtype &mat_k_ij = mat_k_i[j];
-                mat_k_ij = phi.col(i).dot(phi.col(j));
-                if (acc_mat_k_i != nullptr) {
-                    Dtype &acc_mat_k_ij = acc_mat_k_i[j];
-                    acc_mat_k_ij += mat_k_ij;
-                    mat_k_ij = acc_mat_k_ij;
+            for (long d = 0; d < mat_y.cols(); ++d) {
+                Dtype &alpha = mat_alpha(col, d);
+                alpha = phi_col.dot(mat_y.col(d));
+                if (accumulated) {
+                    Dtype &acc_alpha = m_alpha_(col, d);
+                    acc_alpha += alpha;
+                    alpha = acc_alpha;
                 }
-                mat_k(i, j) = mat_k_ij;
+            }
+
+            Dtype *mat_k_col = mat_k.col(col).data();
+            Dtype *acc_mat_k_col = accumulated ? m_mat_k_.col(col).data() : nullptr;
+
+            Dtype &mat_k_cc = mat_k_col[col];
+            mat_k_cc = phi_col.squaredNorm();
+            if (acc_mat_k_col != nullptr) {
+                Dtype &acc_mat_k_cc = acc_mat_k_col[col];
+                acc_mat_k_cc += mat_k_cc;
+                mat_k_cc = acc_mat_k_cc;
+            }
+            mat_k_cc += inv_spectral_densities[col];
+
+            for (long row = col + 1; row < e; ++row) {
+                Dtype &mat_k_rc = mat_k_col[row];
+                mat_k_rc = phi_col.dot(phi.col(row));
+                if (acc_mat_k_col != nullptr) {
+                    Dtype &acc_mat_k_rc = acc_mat_k_col[row];
+                    acc_mat_k_rc += mat_k_rc;
+                    mat_k_rc = acc_mat_k_rc;
+                }
+                mat_k(col, row) = mat_k_rc;
             }
         }
-
-        // long dims = m_setting_->x_dim;
-        // if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the number of rows of mat_x
-        // const long e = m_setting_->GetFrequencies().cols();
-        //
-        // ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
-        // ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
-        //
-        // Matrix phi = ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (N, E)
-        // auto mat_k_block = mat_k.topLeftCorner(e, e);
-        // mat_k_block << phi.transpose() * phi;
-        // auto vec_alpha_block = vec_alpha.head(e);
-        // vec_alpha_block << phi.transpose() * Vector(vec_alpha.head(phi.rows()));
-        //
-        // if (m_setting_->accumulated) {
-        //     auto acc_mat_k = const_cast<Matrix &>(m_mat_k_);
-        //     if (acc_mat_k.size() == 0) { acc_mat_k = Matrix ::Constant(e, e, 0.0); }
-        //     acc_mat_k += mat_k_block;
-        //     mat_k_block << acc_mat_k;
-        //
-        //     auto acc_vec_alpha = const_cast<Vector &>(m_vec_alpha_);
-        //     if (acc_vec_alpha.size() == 0) { acc_vec_alpha = Vector::Constant(e, 0.0); }
-        //     acc_vec_alpha += vec_alpha_block;
-        //     vec_alpha_block << acc_vec_alpha;
-        // }
         return {e, e};
     }
 
@@ -273,26 +288,28 @@ namespace erl::covariance {
         const Eigen::Ref<const VectorX> &vec_var_y,
         const Eigen::Ref<const VectorX> &vec_var_grad,
         MatrixX &mat_k,
-        VectorX &vec_alpha) const {
+        MatrixX &mat_alpha) {
 
         long dims = m_setting_->x_dim;
-        if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the number of rows of mat_x
+        if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the rows of mat_x
         const long e = m_setting_->GetFrequencies().cols();
 
         ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
         ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
+        ERL_DEBUG_ASSERT(mat_alpha.rows() >= e, "mat_alpha.rows() = {}, it should be >= {}.", mat_alpha.rows(), e);
 
         const MatrixX phi = ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
         const long m = phi.rows();
         const long n_grad = (m - num_samples) / dims;  // m = num_samples + n_grad * dims
-        VectorX inv_sigmas(m);
-        const VectorX y = vec_alpha.head(m);
+        const MatrixX mat_y = mat_alpha.topRows(m);
+        // const VectorX y = vec_alpha.head(m);
         const VectorX inv_spectral_densities = m_setting_->GetInvSpectralDensities();
         const bool accumulated = m_setting_->accumulated;
 
+        VectorX inv_sigmas(m);
         VectorX inv_sigmas_phi_i(m);
-        auto acc_mat_k = const_cast<MatrixX &>(m_mat_k_);
-        auto acc_vec_alpha = const_cast<VectorX &>(m_vec_alpha_);
+        // auto acc_mat_k = const_cast<MatrixX &>(m_mat_k_);
+        // auto acc_vec_alpha = const_cast<VectorX &>(m_vec_alpha_);
 
         for (long i = 0; i < num_samples; ++i) {
             inv_sigmas[i] = 1.0 / (vec_var_x[i] + vec_var_y[i]);
@@ -304,42 +321,41 @@ namespace erl::covariance {
         // phi = [phi_1, phi_2, ..., phi_e]
         // inv_sigmas = [1/var_y_1, 1/var_y_2, ..., 1/var_y_N]
         // inv_sigmas_phi = [inv_sigmas .* phi_1, inv_sigmas .* phi_2, ..., inv_sigmas .* phi_N]
-        Dtype *acc_alpha = accumulated ? acc_vec_alpha.data() : nullptr;
-        for (long i = 0; i < e; ++i) {
-            const Dtype *phi_i = phi.col(i).data();
-            Dtype &alpha_i = vec_alpha[i];
-            alpha_i = 0;
-            for (long j = 0; j < m; ++j) {
-                Dtype &inv_sigmas_phi_ij = inv_sigmas_phi_i[j];
-                inv_sigmas_phi_ij = inv_sigmas[j] * phi_i[j];
-                alpha_i += inv_sigmas_phi_ij * y[j];
-            }
-            if (acc_alpha != nullptr) {
-                Dtype &acc_alpha_i = acc_alpha[i];
-                acc_alpha_i += alpha_i;
-                alpha_i = acc_alpha_i;
-            }
+        // Dtype *acc_alpha = accumulated ? acc_vec_alpha.data() : nullptr;
+        for (long col = 0; col < e; ++col) {
+            auto phi_col = phi.col(col);
 
-            Dtype *mat_k_i = mat_k.col(i).data();
-            Dtype *acc_mat_k_i = accumulated ? acc_mat_k.col(i).data() : nullptr;
-            Dtype &mat_k_ii = mat_k_i[i];
-            mat_k_ii = inv_sigmas_phi_i.dot(phi.col(i));
-            if (acc_mat_k_i != nullptr) {
-                Dtype &acc_mat_k_ii = acc_mat_k_i[i];
-                acc_mat_k_ii += mat_k_ii;
-                mat_k_ii = acc_mat_k_ii;
-            }
-            mat_k_ii += inv_spectral_densities[i];
-
-            for (long j = i + 1; j < e; ++j) {
-                Dtype &mat_k_ij = mat_k_i[j];
-                mat_k_ij = inv_sigmas_phi_i.dot(phi.col(j));
-                if (acc_mat_k_i != nullptr) {
-                    Dtype &acc_mat_k_ij = acc_mat_k_i[j];
-                    acc_mat_k_ij += mat_k_ij;
-                    mat_k_ij = acc_mat_k_ij;
+            for (long d = 0; d < mat_y.cols(); ++d) {
+                Dtype &alpha = mat_alpha(col, d);
+                alpha = inv_sigmas.cwiseProduct(phi_col).dot(mat_y.col(d));
+                if (accumulated) {
+                    Dtype &acc_alpha = m_alpha_(col, d);
+                    acc_alpha += alpha;
+                    alpha = acc_alpha;
                 }
-                mat_k(i, j) = mat_k_ij;
+            }
+
+            Dtype *mat_k_col = mat_k.col(col).data();
+            Dtype *acc_mat_k_col = accumulated ? m_mat_k_.col(col).data() : nullptr;
+
+            Dtype &mat_k_cc = mat_k_col[col];
+            mat_k_cc = inv_sigmas_phi_i.dot(phi_col);
+            if (acc_mat_k_col != nullptr) {
+                Dtype &acc_mat_k_cc = acc_mat_k_col[col];
+                acc_mat_k_cc += mat_k_cc;
+                mat_k_cc = acc_mat_k_cc;
+            }
+            mat_k_cc += inv_spectral_densities[col];
+
+            for (long row = col + 1; row < e; ++row) {
+                Dtype &mat_k_rc = mat_k_col[row];
+                mat_k_rc = inv_sigmas_phi_i.dot(phi.col(row));
+                if (acc_mat_k_col != nullptr) {
+                    Dtype &acc_mat_k_rc = acc_mat_k_col[row];
+                    acc_mat_k_rc += mat_k_rc;
+                    mat_k_rc = acc_mat_k_rc;
+                }
+                mat_k(col, row) = mat_k_rc;
             }
         }
 
@@ -356,7 +372,7 @@ namespace erl::covariance {
         MatrixX &mat_k) const {
 
         long dims = m_setting_->x_dim;
-        if (dims <= 0) { dims = mat_x1.rows(); }  // if x_dim is not set, use the number of rows of mat_x1
+        if (dims <= 0) { dims = mat_x1.rows(); }  // if x_dim is not set, use the rows of mat_x1
         const long e = m_setting_->GetFrequencies().cols();
         ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
         ERL_DEBUG_ASSERT(mat_k.cols() >= num_samples2, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), num_samples2);
@@ -376,7 +392,7 @@ namespace erl::covariance {
         MatrixX &mat_k) const {
 
         long dims = m_setting_->x_dim;
-        if (dims <= 0) { dims = mat_x1.rows(); }  // if x_dim is not set, use the number of rows of mat_x1
+        if (dims <= 0) { dims = mat_x1.rows(); }  // if x_dim is not set, use the rows of mat_x1
         const long e = m_setting_->GetFrequencies().cols();
         const long m = predict_gradient ? num_samples2 * (dims + 1) : num_samples2;
         ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
@@ -388,6 +404,16 @@ namespace erl::covariance {
             mat_k.topLeftCorner(e, m) = ComputeEigenFunctions(mat_x2, dims, num_samples2).transpose();
         }
         return {e, m};
+    }
+
+    template<typename Dtype>
+    void
+    ReducedRankCovariance<Dtype>::BuildSpectralDensities() {
+        m_setting_->BuildSpectralDensities([this](const VectorX &freq_squared_norm) -> VectorX { return ComputeSpectralDensities(freq_squared_norm); });
+        const long e = m_setting_->num_basis.prod();
+        if (m_setting_->accumulated) {
+            if (m_mat_k_.size() == 0) { m_mat_k_ = MatrixX::Zero(e, e); }
+        }
     }
 
     template<typename Dtype>
@@ -464,6 +490,24 @@ namespace erl::covariance {
     }
 
     template<typename Dtype>
+    typename ReducedRankCovariance<Dtype>::MatrixX &
+    ReducedRankCovariance<Dtype>::GetKtrainBuffer() {
+        return m_mat_k_;
+    }
+
+    template<typename Dtype>
+    const typename ReducedRankCovariance<Dtype>::MatrixX &
+    ReducedRankCovariance<Dtype>::GetAlpha() const {
+        return m_alpha_;
+    }
+
+    template<typename Dtype>
+    typename ReducedRankCovariance<Dtype>::MatrixX &
+    ReducedRankCovariance<Dtype>::GetAlphaBuffer() {
+        return m_alpha_;
+    }
+
+    template<typename Dtype>
     bool
     ReducedRankCovariance<Dtype>::operator==(const ReducedRankCovariance &other) const {
         if (m_setting_ == nullptr && other.m_setting_ != nullptr) { return false; }
@@ -475,11 +519,16 @@ namespace erl::covariance {
         if (m_mat_k_.size() != other.m_mat_k_.size() || std::memcmp(m_mat_k_.data(), other.m_mat_k_.data(), m_mat_k_.size() * sizeof(Dtype)) != 0) {
             return false;
         }
-        if (m_vec_alpha_.size() != other.m_vec_alpha_.size() ||
-            std::memcmp(m_vec_alpha_.data(), other.m_vec_alpha_.data(), m_vec_alpha_.size() * sizeof(Dtype)) != 0) {
+        if (m_alpha_.size() != other.m_alpha_.size() || std::memcmp(m_alpha_.data(), other.m_alpha_.data(), m_alpha_.size() * sizeof(Dtype)) != 0) {
             return false;
         }
         return true;
+    }
+
+    template<typename Dtype>
+    bool
+    ReducedRankCovariance<Dtype>::operator!=(const ReducedRankCovariance &other) const {
+        return !(*this == other);
     }
 
     template<typename Dtype>
@@ -519,9 +568,9 @@ namespace erl::covariance {
             ERL_WARN("Failed to write mat_k.");
             return false;
         }
-        s << "vec_alpha" << std::endl;
-        if (!common::SaveEigenMatrixToBinaryStream(s, m_vec_alpha_)) {
-            ERL_WARN("Failed to write vec_alpha.");
+        s << "alpha" << std::endl;
+        if (!common::SaveEigenMatrixToBinaryStream(s, m_alpha_)) {
+            ERL_WARN("Failed to write alpha.");
             return false;
         }
         s << "end_of_ReducedRankCovariance" << std::endl;
@@ -567,7 +616,7 @@ namespace erl::covariance {
             "setting",
             "coord_origin",
             "mat_k",
-            "vec_alpha",
+            "alpha",
             "end_of_ReducedRankCovariance",
         };
 
@@ -577,7 +626,7 @@ namespace erl::covariance {
         while (s.good()) {
             s >> token;
             if (token.compare(0, 1, "#") == 0) {
-                skip_line();  // comment line, skip forward until end of line
+                skip_line();  // comment line, skip forward until the end of the line.
                 continue;
             }
             // non-comment line
@@ -611,10 +660,10 @@ namespace erl::covariance {
                     }
                     break;
                 }
-                case 3: {  // vec_alpha
+                case 3: {  // alpha
                     skip_line();
-                    if (!common::LoadEigenMatrixFromBinaryStream(s, m_vec_alpha_)) {
-                        ERL_WARN("Failed to read vec_alpha.");
+                    if (!common::LoadEigenMatrixFromBinaryStream(s, m_alpha_)) {
+                        ERL_WARN("Failed to read alpha.");
                         return false;
                     }
                     break;

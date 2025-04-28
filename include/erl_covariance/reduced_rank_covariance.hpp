@@ -12,7 +12,7 @@ namespace erl::covariance {
 
     template<typename Dtype>
     class ReducedRankCovariance : public Covariance<Dtype> {
-        inline static const std::string kFileHeader = "# erl::covariance::ReducedRankCovariance";
+        inline static const std::string kFileHeader = fmt::format("# {}", type_name<ReducedRankCovariance>());
 
     public:
         using Super = Covariance<Dtype>;
@@ -38,27 +38,16 @@ namespace erl::covariance {
             BuildSpectralDensities(const std::function<VectorX(const VectorX & /*freq_squared_norm*/)> &kernel_spectral_density_func);
 
             void
-            ResetSpectralDensities() {
-                m_is_built_ = false;
-            }
+            ResetSpectralDensities();
 
             [[nodiscard]] const MatrixX &
-            GetFrequencies() const {
-                ERL_DEBUG_ASSERT(m_is_built_, "Spectral densities are not built yet");
-                return m_frequencies_;
-            }
+            GetFrequencies() const;
 
             [[nodiscard]] const VectorX &
-            GetSpectralDensities() const {
-                ERL_DEBUG_ASSERT(m_is_built_, "Spectral densities are not built yet");
-                return m_spectral_densities_;
-            }
+            GetSpectralDensities() const;
 
             [[nodiscard]] const VectorX &
-            GetInvSpectralDensities() const {
-                ERL_DEBUG_ASSERT(m_is_built_, "Spectral densities are not built yet");
-                return m_inv_spectral_densities_;
-            }
+            GetInvSpectralDensities() const;
 
             struct YamlConvertImpl {
                 static YAML::Node
@@ -69,24 +58,14 @@ namespace erl::covariance {
             };
         };
 
-        // inline static const volatile bool kSettingRegistered = common::YamlableBase::Register<Setting>();
-
     protected:
         std::shared_ptr<Setting> m_setting_ = nullptr;
         VectorX m_coord_origin_;  // origin of the coordinate system for the basis functions
         MatrixX m_mat_k_;         // accumulated kernel matrix approximation
-        VectorX m_vec_alpha_;     // accumulated alpha vector approximation
+        MatrixX m_alpha_;         // accumulated alpha vector(matrix) approximation
 
     public:
-        explicit ReducedRankCovariance(std::shared_ptr<Setting> setting)
-            : Super(setting),
-              m_setting_(std::move(setting)) {
-            ERL_WARN_COND(
-                m_setting_->boundaries.size() != m_setting_->x_dim,
-                "Boundaries size ({}) does not match x_dim ({})",
-                m_setting_->boundaries.size(),
-                m_setting_->x_dim);
-        }
+        explicit ReducedRankCovariance(std::shared_ptr<Setting> setting);
 
         ReducedRankCovariance(const ReducedRankCovariance &other) = default;
         ReducedRankCovariance(ReducedRankCovariance &&other) = default;
@@ -113,15 +92,15 @@ namespace erl::covariance {
         }
 
         std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, VectorX &vec_alpha) const override;
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, MatrixX &mat_alpha) override;
 
         std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const Eigen::Ref<const VectorX> &vec_var_y, long num_samples, MatrixX &mat_k, VectorX &vec_alpha)
-            const override;
+        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const Eigen::Ref<const VectorX> &vec_var_y, long num_samples, MatrixX &mat_k, MatrixX &mat_alpha)
+            override;
 
         std::pair<long, long>
-        ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, MatrixX &mat_k, VectorX &vec_alpha)
-            const override;
+        ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, MatrixX &mat_k, MatrixX &mat_alpha)
+            override;
 
         std::pair<long, long>
         ComputeKtrainWithGradient(
@@ -132,7 +111,7 @@ namespace erl::covariance {
             const Eigen::Ref<const VectorX> &vec_var_y,
             const Eigen::Ref<const VectorX> &vec_var_grad,
             MatrixX &mat_k,
-            VectorX &vec_alpha) const override;
+            MatrixX &mat_alpha) override;
 
         std::pair<long, long>
         ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &mat_k)
@@ -149,14 +128,7 @@ namespace erl::covariance {
             MatrixX &mat_k) const override;
 
         void
-        BuildSpectralDensities() {
-            m_setting_->BuildSpectralDensities([this](const VectorX &freq_squared_norm) -> VectorX { return ComputeSpectralDensities(freq_squared_norm); });
-            const long e = m_setting_->num_basis.prod();
-            if (m_setting_->accumulated) {
-                if (m_mat_k_.size() == 0) { m_mat_k_ = MatrixX::Zero(e, e); }
-                if (m_vec_alpha_.size() == 0) { m_vec_alpha_ = VectorX::Zero(e); }
-            }
-        }
+        BuildSpectralDensities();
 
         [[nodiscard]] virtual VectorX
         ComputeSpectralDensities(const VectorX &freq_squared_norm) const = 0;
@@ -183,27 +155,19 @@ namespace erl::covariance {
         }
 
         MatrixX &
-        GetKtrainBuffer() {
-            return m_mat_k_;
-        }
+        GetKtrainBuffer();
 
-        [[nodiscard]] const VectorX &
-        GetAlpha() const {
-            return m_vec_alpha_;
-        }
+        [[nodiscard]] const MatrixX &
+        GetAlpha() const;
 
-        VectorX &
-        GetAlphaBuffer() {
-            return m_vec_alpha_;
-        }
+        MatrixX &
+        GetAlphaBuffer();
 
         [[nodiscard]] bool
         operator==(const ReducedRankCovariance &other) const;
 
         [[nodiscard]] bool
-        operator!=(const ReducedRankCovariance &other) const {
-            return !(*this == other);
-        }
+        operator!=(const ReducedRankCovariance &other) const;
 
         [[nodiscard]] bool
         Write(const std::string &filename) const override;

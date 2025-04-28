@@ -8,9 +8,25 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    RationalQuadratic<Dtype, Dim>::RationalQuadratic(std::shared_ptr<Setting> setting)
+        : Super(std::move(setting)) {
+        if (Dim != Eigen::Dynamic) {
+            ERL_WARN_ONCE_COND(Super::m_setting_->x_dim != Dim, "x_dim will change from {} to {}.", Super::m_setting_->x_dim, Dim);
+            Super::m_setting_->x_dim = Dim;
+        } else {
+            ERL_DEBUG_ASSERT(Super::m_setting_->x_dim == Dim, "x_dim should be {}.", Dim);
+        }
+    }
+
+    template<typename Dtype, int Dim>
+    std::string
+    RationalQuadratic<Dtype, Dim>::GetCovarianceType() const {
+        return type_name<RationalQuadratic>();
+    }
+
+    template<typename Dtype, int Dim>
     std::pair<long, long>
-    RationalQuadratic<Dtype, Dim>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &k_mat, VectorX & /*vec_alpha*/)
-        const {
+    RationalQuadratic<Dtype, Dim>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &k_mat, MatrixX & /*mat_alpha*/) {
         ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
         ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
         long dim;
@@ -19,14 +35,13 @@ namespace erl::covariance {
         } else {
             dim = Dim;
         }
-        const Dtype alpha = Super::m_setting_->alpha;
         const Dtype scale_mix = Super::m_setting_->scale_mix;
         const Dtype a = 0.5 / (Super::m_setting_->scale * Super::m_setting_->scale * scale_mix);
         const long stride = k_mat.outerStride();
         for (long j = 0; j < num_samples; ++j) {
             Dtype *k_mat_j_ptr = k_mat.col(j).data();   // use raw pointer to improve performance
             const Dtype *xj_ptr = mat_x.col(j).data();  // use raw pointer to improve performance
-            k_mat_j_ptr[j] = alpha;                     // k_mat(j, j)
+            k_mat_j_ptr[j] = 1.0f;                      // k_mat(j, j)
             if (j + 1 >= num_samples) { continue; }
             Dtype *k_ji_ptr = &k_mat(j, j + 1);  // k_mat(j, i)
             for (long i = j + 1; i < num_samples; ++i, k_ji_ptr += stride) {
@@ -37,8 +52,55 @@ namespace erl::covariance {
                     r += dx * dx;
                 }
                 Dtype &k_ij = k_mat_j_ptr[i];
-                k_ij = alpha * InlineRq(a, scale_mix, r);  // k_mat(i, j)
-                *k_ji_ptr = k_ij;                          // k_mat(j, i) = k_ij;
+                k_ij = InlineRq(a, scale_mix, r);  // k_mat(i, j)
+                *k_ji_ptr = k_ij;                  // k_mat(j, i) = k_ij;
+            }
+        }
+        return {num_samples, num_samples};
+    }
+
+    template<typename Dtype, int Dim>
+    std::pair<long, long>
+    RationalQuadratic<Dtype, Dim>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrain(mat_x, num_samples, mat_k, mat_alpha);
+    }
+
+    template<typename Dtype, int Dim>
+    std::pair<long, long>
+    RationalQuadratic<Dtype, Dim>::ComputeKtrain(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const Eigen::Ref<const VectorX> &vec_var_y,
+        const long num_samples,
+        MatrixX &k_mat,
+        MatrixX & /*mat_alpha*/) {
+        ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
+        ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
+        long dim;
+        if constexpr (Dim == Eigen::Dynamic) {
+            dim = mat_x.rows();
+        } else {
+            dim = Dim;
+        }
+        const Dtype scale_mix = Super::m_setting_->scale_mix;
+        const Dtype a = 0.5 / (Super::m_setting_->scale * Super::m_setting_->scale * scale_mix);
+        const long stride = k_mat.outerStride();
+        for (long j = 0; j < num_samples; ++j) {
+            Dtype *k_mat_j_ptr = k_mat.col(j).data();   // use raw pointer to improve performance
+            const Dtype *xj_ptr = mat_x.col(j).data();  // use raw pointer to improve performance
+            k_mat_j_ptr[j] = 1.0f + vec_var_y[j];       // k_mat(j, j)
+            if (j + 1 >= num_samples) { continue; }
+            Dtype *k_ji_ptr = &k_mat(j, j + 1);  // k_mat(j, i)
+            for (long i = j + 1; i < num_samples; ++i, k_ji_ptr += stride) {
+                const Dtype *xi_ptr = mat_x.col(i).data();
+                Dtype r = 0.0;
+                for (long k = 0; k < dim; ++k) {
+                    const Dtype dx = xi_ptr[k] - xj_ptr[k];
+                    r += dx * dx;
+                }
+                Dtype &k_ij = k_mat_j_ptr[i];  // k_mat(i, j)
+                k_ij = InlineRq(a, scale_mix, r);
+                *k_ji_ptr = k_ij;  // k_mat(j, i) = k_ij;
             }
         }
         return {num_samples, num_samples};
@@ -50,39 +112,9 @@ namespace erl::covariance {
         const Eigen::Ref<const MatrixX> &mat_x,
         const Eigen::Ref<const VectorX> &vec_var_y,
         const long num_samples,
-        MatrixX &k_mat,
-        VectorX & /*vec_alpha*/) const {
-        ERL_DEBUG_ASSERT(k_mat.rows() >= num_samples, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), num_samples);
-        ERL_DEBUG_ASSERT(k_mat.cols() >= num_samples, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), num_samples);
-        long dim;
-        if constexpr (Dim == Eigen::Dynamic) {
-            dim = mat_x.rows();
-        } else {
-            dim = Dim;
-        }
-        const Dtype alpha = Super::m_setting_->alpha;
-        const Dtype scale_mix = Super::m_setting_->scale_mix;
-        const Dtype a = 0.5 / (Super::m_setting_->scale * Super::m_setting_->scale * scale_mix);
-        const long stride = k_mat.outerStride();
-        for (long j = 0; j < num_samples; ++j) {
-            Dtype *k_mat_j_ptr = k_mat.col(j).data();   // use raw pointer to improve performance
-            const Dtype *xj_ptr = mat_x.col(j).data();  // use raw pointer to improve performance
-            k_mat_j_ptr[j] = alpha + vec_var_y[j];      // k_mat(j, j)
-            if (j + 1 >= num_samples) { continue; }
-            Dtype *k_ji_ptr = &k_mat(j, j + 1);  // k_mat(j, i)
-            for (long i = j + 1; i < num_samples; ++i, k_ji_ptr += stride) {
-                const Dtype *xi_ptr = mat_x.col(i).data();
-                Dtype r = 0.0;
-                for (long k = 0; k < dim; ++k) {
-                    const Dtype dx = xi_ptr[k] - xj_ptr[k];
-                    r += dx * dx;
-                }
-                Dtype &k_ij = k_mat_j_ptr[i];  // k_mat(i, j)
-                k_ij = alpha * InlineRq(a, scale_mix, r);
-                *k_ji_ptr = k_ij;  // k_mat(j, i) = k_ij;
-            }
-        }
-        return {num_samples, num_samples};
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrain(mat_x, vec_var_y, num_samples, mat_k, mat_alpha);
     }
 
     template<typename Dtype, int Dim>
@@ -102,7 +134,6 @@ namespace erl::covariance {
         } else {
             dim = Dim;
         }
-        const Dtype alpha = Super::m_setting_->alpha;
         const Dtype scale_mix = Super::m_setting_->scale_mix;
         const Dtype a = 0.5 / (Super::m_setting_->scale * Super::m_setting_->scale * scale_mix);
         for (long j = 0; j < num_samples2; ++j) {
@@ -115,7 +146,7 @@ namespace erl::covariance {
                     const Dtype dx = x1_ptr[k] - x2_ptr[k];
                     r += dx * dx;
                 }
-                col_j_ptr[i] = alpha * InlineRq(a, scale_mix, r);
+                col_j_ptr[i] = InlineRq(a, scale_mix, r);
             }
         }
         return {num_samples1, num_samples2};
@@ -128,7 +159,7 @@ namespace erl::covariance {
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
         MatrixX &k_mat,
-        VectorX & /*vec_alpha*/) const {
+        MatrixX & /*mat_alpha*/) {
 
         long dim;
         if constexpr (Dim == Eigen::Dynamic) {
@@ -148,9 +179,8 @@ namespace erl::covariance {
         ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
         ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
 
-        const Dtype alpha = Super::m_setting_->alpha;
         const Dtype scale_mix = Super::m_setting_->scale_mix;
-        const Dtype l2_inv = 1. / (Super::m_setting_->scale * Super::m_setting_->scale);
+        const Dtype l2_inv = 1.0 / (Super::m_setting_->scale * Super::m_setting_->scale);
         const Dtype a = 0.5 * l2_inv / scale_mix;
         // buffer to store the difference between x1_i and x2_j
         Eigen::Vector<Dtype, Dim> diff_ij;          // avoid memory allocation on the heap
@@ -163,7 +193,7 @@ namespace erl::covariance {
         }
         for (long j = 0; j < num_samples; ++j) {
             Dtype *k_mat_j_ptr = k_mat.col(j).data();
-            k_mat_j_ptr[j] = alpha;  // k_mat(j, j)
+            k_mat_j_ptr[j] = 1.0f;  // k_mat(j, j)
             if (grad_flags[j]) {
                 for (long k = 0, kj = grad_flags[j]; k < dim; ++k, kj += n_grad) { k_mat_kj_ptrs[k] = k_mat.col(kj).data(); }
 
@@ -188,8 +218,8 @@ namespace erl::covariance {
                     dx = xi_ptr[k] - xj_ptr[k];
                     r += dx * dx;
                 }
-                Dtype &k_ij = k_mat_j_ptr[i];              // k_mat(i, j)
-                k_ij = alpha * InlineRq(a, scale_mix, r);  // cov(f_i, f_j)
+                Dtype &k_ij = k_mat_j_ptr[i];      // k_mat(i, j)
+                k_ij = InlineRq(a, scale_mix, r);  // cov(f_i, f_j)
                 k_mat_i_ptr[j] = k_ij;
 
                 if (const Dtype beta = 1. / (1. + a * r), gamma = beta * beta * l2_inv * (1. + scale_mix) / scale_mix; grad_flags[j]) {
@@ -244,11 +274,22 @@ namespace erl::covariance {
         const Eigen::Ref<const MatrixX> &mat_x,
         const long num_samples,
         Eigen::VectorXl &vec_grad_flags,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrainWithGradient(mat_x, num_samples, vec_grad_flags, mat_k, mat_alpha);
+    }
+
+    template<typename Dtype, int Dim>
+    std::pair<long, long>
+    RationalQuadratic<Dtype, Dim>::ComputeKtrainWithGradient(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const long num_samples,
+        Eigen::VectorXl &vec_grad_flags,
         const Eigen::Ref<const VectorX> &vec_var_x,
         const Eigen::Ref<const VectorX> &vec_var_y,
         const Eigen::Ref<const VectorX> &vec_var_grad,
         MatrixX &k_mat,
-        VectorX & /*vec_alpha*/) const {
+        MatrixX & /*mat_alpha*/) {
 
         long dim;
         if constexpr (Dim == Eigen::Dynamic) {
@@ -268,7 +309,6 @@ namespace erl::covariance {
         ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
         ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
 
-        const Dtype alpha = Super::m_setting_->alpha;
         const Dtype scale_mix = Super::m_setting_->scale_mix;
         const Dtype l2_inv = 1. / (Super::m_setting_->scale * Super::m_setting_->scale);
         const Dtype a = 0.5 * l2_inv / scale_mix;
@@ -283,7 +323,7 @@ namespace erl::covariance {
         }
         for (long j = 0; j < num_samples; ++j) {
             Dtype *k_mat_j_ptr = k_mat.col(j).data();
-            k_mat_j_ptr[j] = alpha + vec_var_x[j] + vec_var_y[j];  // k_mat(j, j)
+            k_mat_j_ptr[j] = 1.0f + vec_var_x[j] + vec_var_y[j];  // k_mat(j, j)
             if (grad_flags[j]) {
                 for (long k = 0, kj = grad_flags[j]; k < dim; ++k, kj += n_grad) { k_mat_kj_ptrs[k] = k_mat.col(kj).data(); }
 
@@ -308,9 +348,9 @@ namespace erl::covariance {
                     dx = xi_ptr[k] - xj_ptr[k];
                     r2 += dx * dx;
                 }
-                Dtype &k_ij = k_mat_j_ptr[i];               // k_mat(i, j)
-                k_ij = alpha * InlineRq(a, scale_mix, r2);  // cov(f_i, f_j)
-                k_mat_i_ptr[j] = k_ij;                      // k_mat(j, i)
+                Dtype &k_ij = k_mat_j_ptr[i];       // k_mat(i, j)
+                k_ij = InlineRq(a, scale_mix, r2);  // cov(f_i, f_j)
+                k_mat_i_ptr[j] = k_ij;              // k_mat(j, i)
 
                 if (const Dtype beta = 1. / (1. + a * r2), gamma = beta * beta * l2_inv * (1. + scale_mix) / scale_mix; grad_flags[j]) {
                     // cov(df_j, f_i) = cov(f_i, df_j)
@@ -360,6 +400,20 @@ namespace erl::covariance {
 
     template<typename Dtype, int Dim>
     std::pair<long, long>
+    RationalQuadratic<Dtype, Dim>::ComputeKtrainWithGradient(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const long num_samples,
+        Eigen::VectorXl &vec_grad_flags,
+        const Eigen::Ref<const VectorX> &vec_var_x,
+        const Eigen::Ref<const VectorX> &vec_var_y,
+        const Eigen::Ref<const VectorX> &vec_var_grad,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrainWithGradient(mat_x, num_samples, vec_grad_flags, vec_var_x, vec_var_y, vec_var_grad, mat_k, mat_alpha);
+    }
+
+    template<typename Dtype, int Dim>
+    std::pair<long, long>
     RationalQuadratic<Dtype, Dim>::ComputeKtestWithGradient(
         const Eigen::Ref<const MatrixX> &mat_x1,
         const long num_samples1,
@@ -384,7 +438,6 @@ namespace erl::covariance {
         ERL_DEBUG_ASSERT(k_mat.rows() >= n_rows, "k_mat.rows() = {}, it should be >= {}.", k_mat.rows(), n_rows);
         ERL_DEBUG_ASSERT(k_mat.cols() >= n_cols, "k_mat.cols() = {}, it should be >= {}.", k_mat.cols(), n_cols);
 
-        const Dtype alpha = Super::m_setting_->alpha;
         const Dtype scale_mix = Super::m_setting_->scale_mix;
         const Dtype l2_inv = 1. / (Super::m_setting_->scale * Super::m_setting_->scale);
         const Dtype a = 0.5 * l2_inv / scale_mix;
@@ -410,8 +463,8 @@ namespace erl::covariance {
                     dx = x1_i_ptr[k] - x2_j_ptr[k];
                     r2 += dx * dx;
                 }
-                Dtype &k_ij = k_mat_j_ptr[i];               // k_mat(i, j)
-                k_ij = alpha * InlineRq(a, scale_mix, r2);  // cov(f1_i, f2_j)
+                Dtype &k_ij = k_mat_j_ptr[i];       // k_mat(i, j)
+                k_ij = InlineRq(a, scale_mix, r2);  // cov(f1_i, f2_j)
                 const Dtype beta = 1. / (1. + a * r2);
                 if (predict_gradient) {
                     for (long k = 0, kj = j + num_samples2; k < dim; ++k, kj += num_samples2) {  // cov(f1_i, df2_j)
