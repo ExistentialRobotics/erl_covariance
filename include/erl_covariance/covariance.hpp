@@ -22,10 +22,13 @@ namespace erl::covariance {
 
         // structure for holding the parameters
         struct Setting : common::Yamlable<Setting> {
-            long x_dim = 2;        // dimension of input space
-            Dtype scale = 1.;      // scale length
-            Dtype scale_mix = 1.;  // used by RationalQuadratic, decreasing this value allows more local variations, inf --> Gaussian kernel
-            VectorX weights;       // used by some custom kernels
+            long x_dim = 2;    // dimension of input space
+            Dtype scale = 1.;  // scale length
+
+            // used by RationalQuadratic, decreasing this value allows more local variations,
+            // inf --> Gaussian kernel
+            Dtype scale_mix = 1.;
+            VectorX weights;  // used by some custom kernels
 
             struct YamlConvertImpl {
                 static YAML::Node
@@ -40,9 +43,6 @@ namespace erl::covariance {
 
     protected:
         std::shared_ptr<Setting> m_setting_ = nullptr;
-
-    private:
-        inline static const std::string kFileHeader = "# erl::covariance::Covariance<Dtype>";
 
     public:
         virtual ~Covariance() = default;
@@ -82,7 +82,10 @@ namespace erl::covariance {
         GetSetting() const;
 
         [[nodiscard]] virtual std::pair<long, long>
-        GetMinimumKtrainSize(long num_samples, long num_samples_with_gradient, long num_gradient_dimensions) const;
+        GetMinimumKtrainSize(
+            long num_samples,
+            long num_samples_with_gradient,
+            long num_gradient_dimensions) const;
 
         [[nodiscard]] virtual std::pair<long, long>
         GetMinimumKtestSize(
@@ -93,7 +96,11 @@ namespace erl::covariance {
             bool predict_gradient) const;
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, MatrixX &mat_alpha) = 0;
+        ComputeKtrain(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            long num_samples,
+            MatrixX &mat_k,
+            MatrixX &mat_alpha) = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
         ComputeKtrain(
@@ -104,8 +111,12 @@ namespace erl::covariance {
             MatrixX &mat_alpha) = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
-        ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &mat_k)
-            const = 0;
+        ComputeKtest(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples1,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_samples2,
+            MatrixX &mat_k) const = 0;
 
         [[nodiscard]] virtual std::pair<long, long>
         ComputeKtestSparse(
@@ -174,13 +185,7 @@ namespace erl::covariance {
         operator!=(const Covariance &other) const;
 
         [[nodiscard]] virtual bool
-        Write(const std::string &filename) const;
-
-        [[nodiscard]] virtual bool
         Write(std::ostream &s) const;
-
-        [[nodiscard]] virtual bool
-        Read(const std::string &filename);
 
         [[nodiscard]] virtual bool
         Read(std::istream &s);
@@ -194,7 +199,9 @@ namespace erl::covariance {
 #include "covariance.tpp"
 
 template<>
-struct YAML::convert<erl::covariance::Covariance<double>::Setting> : erl::covariance::Covariance<double>::Setting::YamlConvertImpl {};
+struct YAML::convert<erl::covariance::Covariance<double>::Setting>
+    : erl::covariance::Covariance<double>::Setting::YamlConvertImpl {};
 
 template<>
-struct YAML::convert<erl::covariance::Covariance<float>::Setting> : erl::covariance::Covariance<float>::Setting::YamlConvertImpl {};
+struct YAML::convert<erl::covariance::Covariance<float>::Setting>
+    : erl::covariance::Covariance<float>::Setting::YamlConvertImpl {};

@@ -12,7 +12,6 @@ namespace erl::covariance {
 
     template<typename Dtype>
     class ReducedRankCovariance : public Covariance<Dtype> {
-        inline static const std::string kFileHeader = fmt::format("# {}", type_name<ReducedRankCovariance>());
 
     public:
         using Super = Covariance<Dtype>;
@@ -20,22 +19,33 @@ namespace erl::covariance {
         using VectorX = Eigen::VectorX<Dtype>;
 
         struct Setting : common::Yamlable<Setting, typename Super::Setting> {
-            long max_num_basis = -1;    // maximum number of basis functions per dimension, -1 means no limit
-            Eigen::VectorXl num_basis;  // number of basis functions per dimension
-            VectorX boundaries;         // boundaries for the basis functions per dimension
-            bool accumulated = true;    // whether to accumulate the kernel matrix or not
+            // maximum number of basis functions per dimension, -1 means no limit
+            long max_num_basis = -1;
+            // number of basis functions per dimension
+            Eigen::VectorXl num_basis;
+            VectorX boundaries;       // boundaries for the basis functions per dimension
+            bool accumulated = true;  // whether to accumulate the kernel matrix or not
 
         private:
-            // the following members should be computed once and shared among all instances that refer to the same setting
+            // the following members should be computed once and shared among all instances that
+            // refer to the same setting
+
             std::mutex m_mutex_;                // mutex for building spectral densities
             bool volatile m_is_built_ = false;  // whether the spectral densities are built or not
-            MatrixX m_frequencies_;             // frequencies for the basis functions, each column is a frequency vector, (fx, fy, fz, ...)
-            VectorX m_spectral_densities_;      // spectral densities for the basis functions, (s1, s2, s3, ...)
-            VectorX m_inv_spectral_densities_;  // inverse spectral densities for the basis functions, (1/s1, 1/s2, 1/s3, ...)
+
+            // frequencies for the basis functions, each column is a frequency vector,
+            // (fx, fy, fz, ...)
+            MatrixX m_frequencies_;
+            // spectral densities for the basis functions, (s1, s2, s3, ...)
+            VectorX m_spectral_densities_;
+            // inverse spectral densities for the basis functions, (1/s1, 1/s2, 1/s3, ...)
+            VectorX m_inv_spectral_densities_;
 
         public:
             void
-            BuildSpectralDensities(const std::function<VectorX(const VectorX & /*freq_squared_norm*/)> &kernel_spectral_density_func);
+            BuildSpectralDensities(
+                const std::function<VectorX(const VectorX & /*freq_squared_norm*/)>
+                    &kernel_spectral_density_func);
 
             void
             ResetSpectralDensities();
@@ -75,32 +85,41 @@ namespace erl::covariance {
         operator=(ReducedRankCovariance &&other) = default;
 
         [[nodiscard]] std::pair<long, long>
-        GetMinimumKtrainSize(const long /*num_samples*/, const long /*num_samples_with_gradient*/, const long /*num_gradient_dimensions*/) const override {
-            long e = m_setting_->num_basis.prod();
-            return {e, e};
-        }
+        GetMinimumKtrainSize(
+            long /*num_samples*/,
+            long /*num_samples_with_gradient*/,
+            long /*num_gradient_dimensions*/) const override;
 
         [[nodiscard]] std::pair<long, long>
         GetMinimumKtestSize(
-            const long /*num_train_samples*/,
-            const long /*num_train_samples_with_gradient*/,
-            const long num_gradient_dimensions,
-            const long num_test_queries,
-            const bool predict_gradient) const override {
-            long e = m_setting_->num_basis.prod();
-            return {e, predict_gradient ? num_test_queries * (1 + num_gradient_dimensions) : num_test_queries};
-        }
+            long /*num_train_samples*/,
+            long /*num_train_samples_with_gradient*/,
+            long num_gradient_dimensions,
+            long num_test_queries,
+            bool predict_gradient) const override;
 
         std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, MatrixX &mat_alpha) override;
+        ComputeKtrain(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            long num_samples,
+            MatrixX &mat_k,
+            MatrixX &mat_alpha) override;
 
         std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const Eigen::Ref<const VectorX> &vec_var_y, long num_samples, MatrixX &mat_k, MatrixX &mat_alpha)
-            override;
+        ComputeKtrain(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            const Eigen::Ref<const VectorX> &vec_var_y,
+            long num_samples,
+            MatrixX &mat_k,
+            MatrixX &mat_alpha) override;
 
         std::pair<long, long>
-        ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, MatrixX &mat_k, MatrixX &mat_alpha)
-            override;
+        ComputeKtrainWithGradient(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            long num_samples,
+            Eigen::VectorXl &vec_grad_flags,
+            MatrixX &mat_k,
+            MatrixX &mat_alpha) override;
 
         std::pair<long, long>
         ComputeKtrainWithGradient(
@@ -114,8 +133,12 @@ namespace erl::covariance {
             MatrixX &mat_alpha) override;
 
         std::pair<long, long>
-        ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &mat_k)
-            const override;
+        ComputeKtest(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples1,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_samples2,
+            MatrixX &mat_k) const override;
 
         std::pair<long, long>
         ComputeKtestWithGradient(
@@ -134,25 +157,24 @@ namespace erl::covariance {
         ComputeSpectralDensities(const VectorX &freq_squared_norm) const = 0;
 
         [[nodiscard]] MatrixX
-        ComputeEigenFunctions(const Eigen::Ref<const MatrixX> &mat_x, long dims, long num_samples) const;
+        ComputeEigenFunctions(const Eigen::Ref<const MatrixX> &mat_x, long dims, long num_samples)
+            const;
 
         [[nodiscard]] MatrixX
-        ComputeEigenFunctionsWithGradient(const Eigen::Ref<const MatrixX> &mat_x, long dims, long num_samples, Eigen::VectorXl &vec_grad_flags) const;
+        ComputeEigenFunctionsWithGradient(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            long dims,
+            long num_samples,
+            Eigen::VectorXl &vec_grad_flags) const;
 
         [[nodiscard]] VectorX
-        GetCoordOrigin() const {
-            return m_coord_origin_;
-        }
+        GetCoordOrigin() const;
 
         void
-        SetCoordOrigin(const VectorX &coord_origin) {
-            m_coord_origin_ = coord_origin;
-        }
+        SetCoordOrigin(const VectorX &coord_origin);
 
         [[nodiscard]] const MatrixX &
-        GetKtrain() const {
-            return m_mat_k_;
-        }
+        GetKtrain() const;
 
         MatrixX &
         GetKtrainBuffer();
@@ -170,13 +192,7 @@ namespace erl::covariance {
         operator!=(const ReducedRankCovariance &other) const;
 
         [[nodiscard]] bool
-        Write(const std::string &filename) const override;
-
-        [[nodiscard]] bool
         Write(std::ostream &s) const override;
-
-        [[nodiscard]] bool
-        Read(const std::string &filename) override;
 
         [[nodiscard]] bool
         Read(std::istream &s) override;
@@ -187,7 +203,9 @@ namespace erl::covariance {
 #include "reduced_rank_covariance.tpp"
 
 template<>
-struct YAML::convert<erl::covariance::ReducedRankCovariance<double>::Setting> : erl::covariance::ReducedRankCovariance<double>::Setting::YamlConvertImpl {};
+struct YAML::convert<erl::covariance::ReducedRankCovariance<double>::Setting>
+    : erl::covariance::ReducedRankCovariance<double>::Setting::YamlConvertImpl {};
 
 template<>
-struct YAML::convert<erl::covariance::ReducedRankCovariance<float>::Setting> : erl::covariance::ReducedRankCovariance<float>::Setting::YamlConvertImpl {};
+struct YAML::convert<erl::covariance::ReducedRankCovariance<float>::Setting>
+    : erl::covariance::ReducedRankCovariance<float>::Setting::YamlConvertImpl {};

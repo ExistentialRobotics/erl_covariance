@@ -3,10 +3,11 @@
 namespace erl::covariance {
     template<typename Dtype>
     void
-    ReducedRankCovariance<Dtype>::Setting::BuildSpectralDensities(const std::function<VectorX(const VectorX &)> &kernel_spectral_density_func) {
+    ReducedRankCovariance<Dtype>::Setting::BuildSpectralDensities(
+        const std::function<VectorX(const VectorX &)> &kernel_spectral_density_func) {
         // double-check locking. see https://en.wikipedia.org/wiki/Double-checked_locking
-        // double-check locking may not work correctly before C++11 due to reordering of instructions.
-        // but it is safe here.
+        // double-check locking may not work correctly before C++11 due to reordering of
+        // instructions. but it is safe here.
         if (m_is_built_) { return; }  // already built
         {
             std::lock_guard<std::mutex> lock(m_mutex_);  // lock for building spectral densities
@@ -15,7 +16,11 @@ namespace erl::covariance {
             const long x_dim = num_basis.size();
             const long total_size = num_basis.prod();
 
-            ERL_ASSERTM(x_dim == boundaries.size(), "num_basis size ({}) does not match boundaries size ({})", x_dim, boundaries.size());
+            ERL_ASSERTM(
+                x_dim == boundaries.size(),
+                "num_basis size ({}) does not match boundaries size ({})",
+                x_dim,
+                boundaries.size());
             ERL_ASSERTM((num_basis.array() > 0).all(), "num_basis should be > 0.");
             ERL_ASSERTM((boundaries.array() > 0).all(), "boundaries should be > 0.");
 
@@ -29,9 +34,10 @@ namespace erl::covariance {
                 const long dim_size = num_basis[i];
                 const long n_copies = total_size / dim_size;
                 const Dtype f = M_PI / (2.0 * boundaries[i]);
-                MatrixX frequencies = VectorX::LinSpaced(dim_size, f, static_cast<Dtype>(dim_size) * f)  //
-                                          .transpose()
-                                          .replicate(stride, n_copies / stride);
+                MatrixX frequencies =
+                    VectorX::LinSpaced(dim_size, f, static_cast<Dtype>(dim_size) * f)
+                        .transpose()
+                        .replicate(stride, n_copies / stride);
                 m_frequencies_.row(i) << frequencies.reshaped(total_size, 1).transpose();
             }
 
@@ -39,7 +45,9 @@ namespace erl::covariance {
             if (max_num_basis > 0 && max_num_basis < freq_squared_norm.size()) {
                 std::vector<long> indices(freq_squared_norm.size());
                 std::iota(indices.begin(), indices.end(), 0);
-                std::sort(indices.begin(), indices.end(), [&freq_squared_norm](long i, long j) { return freq_squared_norm[i] < freq_squared_norm[j]; });
+                std::sort(indices.begin(), indices.end(), [&freq_squared_norm](long i, long j) {
+                    return freq_squared_norm[i] < freq_squared_norm[j];
+                });
                 indices.resize(max_num_basis);
                 VectorX freq_squared_norm_new = freq_squared_norm(indices);
                 MatrixX frequencies_new = m_frequencies_(Eigen::indexing::all, indices);
@@ -84,21 +92,23 @@ namespace erl::covariance {
     YAML::Node
     ReducedRankCovariance<Dtype>::Setting::YamlConvertImpl::encode(const Setting &setting) {
         YAML::Node node = Super::Setting::YamlConvertImpl::encode(setting);
-        node["max_num_basis"] = setting.max_num_basis;
-        node["num_basis"] = setting.num_basis;
-        node["boundaries"] = setting.boundaries;
-        node["accumulated"] = setting.accumulated;
+        ERL_YAML_SAVE_ATTR(node, setting, max_num_basis);
+        ERL_YAML_SAVE_ATTR(node, setting, num_basis);
+        ERL_YAML_SAVE_ATTR(node, setting, boundaries);
+        ERL_YAML_SAVE_ATTR(node, setting, accumulated);
         return node;
     }
 
     template<typename Dtype>
     bool
-    ReducedRankCovariance<Dtype>::Setting::YamlConvertImpl::decode(const YAML::Node &node, Setting &setting) {
+    ReducedRankCovariance<Dtype>::Setting::YamlConvertImpl::decode(
+        const YAML::Node &node,
+        Setting &setting) {
         if (!Super::Setting::YamlConvertImpl::decode(node, setting)) { return false; }
-        setting.max_num_basis = node["max_num_basis"].as<long>();
-        setting.num_basis = node["num_basis"].as<Eigen::VectorXl>();
-        setting.boundaries = node["boundaries"].as<VectorX>();
-        setting.accumulated = node["accumulated"].as<bool>();
+        ERL_YAML_LOAD_ATTR_TYPE(node, setting, max_num_basis, long);
+        ERL_YAML_LOAD_ATTR_TYPE(node, setting, num_basis, Eigen::VectorXl);
+        ERL_YAML_LOAD_ATTR_TYPE(node, setting, boundaries, VectorX);
+        ERL_YAML_LOAD_ATTR_TYPE(node, setting, accumulated, bool);
         return true;
     }
 
@@ -115,22 +125,63 @@ namespace erl::covariance {
 
     template<typename Dtype>
     std::pair<long, long>
-    ReducedRankCovariance<Dtype>::ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, MatrixX &mat_alpha) {
+    ReducedRankCovariance<Dtype>::GetMinimumKtrainSize(
+        const long /*i*/,
+        const long /*i1*/,
+        const long /*i2*/) const {
+        long e = m_setting_->num_basis.prod();
+        return {e, e};
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    ReducedRankCovariance<Dtype>::GetMinimumKtestSize(
+        const long /*i*/,
+        const long /*i1*/,
+        const long num_gradient_dimensions,
+        const long num_test_queries,
+        const bool predict_gradient) const {
+        long e = m_setting_->num_basis.prod();
+        return {
+            e,
+            predict_gradient ? num_test_queries * (1 + num_gradient_dimensions) : num_test_queries};
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    ReducedRankCovariance<Dtype>::ComputeKtrain(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        long num_samples,
+        MatrixX &mat_k,
+        MatrixX &mat_alpha) {
         long dims = m_setting_->x_dim;
-        if (dims <= 0) { dims = mat_x.rows(); }              // if x_dim is not set, use the rows of mat_x
+        if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the rows of mat_x
         const long e = m_setting_->GetFrequencies().cols();  // number of frequencies
 
-        ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
-        ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
-        ERL_DEBUG_ASSERT(mat_alpha.rows() >= e, "mat_alpha.rows() = {}, it should be >= {}.", mat_alpha.rows(), e);
+        ERL_DEBUG_ASSERT(
+            mat_k.rows() >= e,
+            "mat_k.rows() = {}, it should be >= {}.",
+            mat_k.rows(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_k.cols() >= e,
+            "mat_k.cols() = {}, it should be >= {}.",
+            mat_k.cols(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_alpha.rows() >= e,
+            "mat_alpha.rows() = {}, it should be >= {}.",
+            mat_alpha.rows(),
+            e);
 
         const MatrixX &phi = ComputeEigenFunctions(mat_x, dims, num_samples);  // (N, E)
         auto mat_k_block = mat_k.topLeftCorner(e, e);                          // (E, E)
-        mat_k_block << phi.transpose() * phi;                                  // (E, N) * (N, E) = (E, E)
+        mat_k_block << phi.transpose() * phi;  // (E, N) * (N, E) = (E, E)
 
         if (m_alpha_.size() == 0) { m_alpha_ = MatrixX::Zero(e, mat_alpha.cols()); }  // (E, D)
         auto phi_alpha = mat_alpha.topRows(e);                                        // (E, D)
-        phi_alpha << phi.transpose() * MatrixX(mat_alpha.topRows(num_samples));       // (E, N) * (N, D) = (E, D)
+        phi_alpha << phi.transpose() *
+                         MatrixX(mat_alpha.topRows(num_samples));  // (E, N) * (N, D) = (E, D)
 
         if (m_setting_->accumulated) {
             auto acc_mat_k = const_cast<MatrixX &>(m_mat_k_);
@@ -157,9 +208,21 @@ namespace erl::covariance {
         if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the rows of mat_x
         const long e = m_setting_->GetFrequencies().cols();
 
-        ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
-        ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
-        ERL_DEBUG_ASSERT(mat_alpha.rows() >= e, "mat_alpha.rows() = {}, it should be >= {}.", mat_alpha.rows(), e);
+        ERL_DEBUG_ASSERT(
+            mat_k.rows() >= e,
+            "mat_k.rows() = {}, it should be >= {}.",
+            mat_k.rows(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_k.cols() >= e,
+            "mat_k.cols() = {}, it should be >= {}.",
+            mat_k.cols(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_alpha.rows() >= e,
+            "mat_alpha.rows() = {}, it should be >= {}.",
+            mat_alpha.rows(),
+            e);
 
         const MatrixX phi = ComputeEigenFunctions(mat_x, dims, num_samples);    // (num_samples, E)
         const VectorX inv_sigmas = vec_var_y.head(num_samples).cwiseInverse();  // (num_samples, )
@@ -226,12 +289,25 @@ namespace erl::covariance {
         if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the rows of mat_x
         const long e = m_setting_->GetFrequencies().cols();
 
-        ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
-        ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
-        ERL_DEBUG_ASSERT(mat_alpha.rows() >= e, "mat_alpha.rows() = {}, it should be >= {}.", mat_alpha.rows(), e);
+        ERL_DEBUG_ASSERT(
+            mat_k.rows() >= e,
+            "mat_k.rows() = {}, it should be >= {}.",
+            mat_k.rows(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_k.cols() >= e,
+            "mat_k.cols() = {}, it should be >= {}.",
+            mat_k.cols(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_alpha.rows() >= e,
+            "mat_alpha.rows() = {}, it should be >= {}.",
+            mat_alpha.rows(),
+            e);
 
-        const MatrixX phi = ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
-        const MatrixX mat_y = mat_alpha.topRows(phi.rows());                                              // (m, D)
+        const MatrixX phi =
+            ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
+        const MatrixX mat_y = mat_alpha.topRows(phi.rows());                              // (m, D)
         const VectorX inv_spectral_densities = m_setting_->GetInvSpectralDensities();
         const bool accumulated = m_setting_->accumulated;
 
@@ -294,22 +370,32 @@ namespace erl::covariance {
         if (dims <= 0) { dims = mat_x.rows(); }  // if x_dim is not set, use the rows of mat_x
         const long e = m_setting_->GetFrequencies().cols();
 
-        ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
-        ERL_DEBUG_ASSERT(mat_k.cols() >= e, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), e);
-        ERL_DEBUG_ASSERT(mat_alpha.rows() >= e, "mat_alpha.rows() = {}, it should be >= {}.", mat_alpha.rows(), e);
+        ERL_DEBUG_ASSERT(
+            mat_k.rows() >= e,
+            "mat_k.rows() = {}, it should be >= {}.",
+            mat_k.rows(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_k.cols() >= e,
+            "mat_k.cols() = {}, it should be >= {}.",
+            mat_k.cols(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_alpha.rows() >= e,
+            "mat_alpha.rows() = {}, it should be >= {}.",
+            mat_alpha.rows(),
+            e);
 
-        const MatrixX phi = ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
+        const MatrixX phi =
+            ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
         const long m = phi.rows();
         const long n_grad = (m - num_samples) / dims;  // m = num_samples + n_grad * dims
         const MatrixX mat_y = mat_alpha.topRows(m);
-        // const VectorX y = vec_alpha.head(m);
         const VectorX inv_spectral_densities = m_setting_->GetInvSpectralDensities();
         const bool accumulated = m_setting_->accumulated;
 
         VectorX inv_sigmas(m);
         VectorX inv_sigmas_phi_i(m);
-        // auto acc_mat_k = const_cast<MatrixX &>(m_mat_k_);
-        // auto acc_vec_alpha = const_cast<VectorX &>(m_vec_alpha_);
 
         for (long i = 0; i < num_samples; ++i) {
             inv_sigmas[i] = 1.0 / (vec_var_x[i] + vec_var_y[i]);
@@ -321,7 +407,6 @@ namespace erl::covariance {
         // phi = [phi_1, phi_2, ..., phi_e]
         // inv_sigmas = [1/var_y_1, 1/var_y_2, ..., 1/var_y_N]
         // inv_sigmas_phi = [inv_sigmas .* phi_1, inv_sigmas .* phi_2, ..., inv_sigmas .* phi_N]
-        // Dtype *acc_alpha = accumulated ? acc_vec_alpha.data() : nullptr;
         for (long col = 0; col < e; ++col) {
             auto phi_col = phi.col(col);
 
@@ -374,9 +459,18 @@ namespace erl::covariance {
         long dims = m_setting_->x_dim;
         if (dims <= 0) { dims = mat_x1.rows(); }  // if x_dim is not set, use the rows of mat_x1
         const long e = m_setting_->GetFrequencies().cols();
-        ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
-        ERL_DEBUG_ASSERT(mat_k.cols() >= num_samples2, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), num_samples2);
-        mat_k.topLeftCorner(e, num_samples2) = ComputeEigenFunctions(mat_x2, dims, num_samples2).transpose();
+        ERL_DEBUG_ASSERT(
+            mat_k.rows() >= e,
+            "mat_k.rows() = {}, it should be >= {}.",
+            mat_k.rows(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_k.cols() >= num_samples2,
+            "mat_k.cols() = {}, it should be >= {}.",
+            mat_k.cols(),
+            num_samples2);
+        mat_k.topLeftCorner(e, num_samples2) =
+            ComputeEigenFunctions(mat_x2, dims, num_samples2).transpose();
         return {e, num_samples2};
     }
 
@@ -395,13 +489,24 @@ namespace erl::covariance {
         if (dims <= 0) { dims = mat_x1.rows(); }  // if x_dim is not set, use the rows of mat_x1
         const long e = m_setting_->GetFrequencies().cols();
         const long m = predict_gradient ? num_samples2 * (dims + 1) : num_samples2;
-        ERL_DEBUG_ASSERT(mat_k.rows() >= e, "mat_k.rows() = {}, it should be >= {}.", mat_k.rows(), e);
-        ERL_DEBUG_ASSERT(mat_k.cols() >= m, "mat_k.cols() = {}, it should be >= {}.", mat_k.cols(), m);
+        ERL_DEBUG_ASSERT(
+            mat_k.rows() >= e,
+            "mat_k.rows() = {}, it should be >= {}.",
+            mat_k.rows(),
+            e);
+        ERL_DEBUG_ASSERT(
+            mat_k.cols() >= m,
+            "mat_k.cols() = {}, it should be >= {}.",
+            mat_k.cols(),
+            m);
         Eigen::VectorXl grad_flags = Eigen::VectorXl::Ones(num_samples2);
         if (predict_gradient) {
-            mat_k.topLeftCorner(e, m) = ComputeEigenFunctionsWithGradient(mat_x2, dims, num_samples2, grad_flags).transpose();
+            mat_k.topLeftCorner(e, m) =
+                ComputeEigenFunctionsWithGradient(mat_x2, dims, num_samples2, grad_flags)
+                    .transpose();
         } else {
-            mat_k.topLeftCorner(e, m) = ComputeEigenFunctions(mat_x2, dims, num_samples2).transpose();
+            mat_k.topLeftCorner(e, m) =
+                ComputeEigenFunctions(mat_x2, dims, num_samples2).transpose();
         }
         return {e, m};
     }
@@ -409,7 +514,9 @@ namespace erl::covariance {
     template<typename Dtype>
     void
     ReducedRankCovariance<Dtype>::BuildSpectralDensities() {
-        m_setting_->BuildSpectralDensities([this](const VectorX &freq_squared_norm) -> VectorX { return ComputeSpectralDensities(freq_squared_norm); });
+        m_setting_->BuildSpectralDensities([this](const VectorX &freq_squared_norm) -> VectorX {
+            return ComputeSpectralDensities(freq_squared_norm);
+        });
         const long e = m_setting_->num_basis.prod();
         if (m_setting_->accumulated) {
             if (m_mat_k_.size() == 0) { m_mat_k_ = MatrixX::Zero(e, e); }
@@ -418,12 +525,19 @@ namespace erl::covariance {
 
     template<typename Dtype>
     typename ReducedRankCovariance<Dtype>::MatrixX
-    ReducedRankCovariance<Dtype>::ComputeEigenFunctions(const Eigen::Ref<const MatrixX> &mat_x, const long dims, const long num_samples) const {
+    ReducedRankCovariance<Dtype>::ComputeEigenFunctions(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const long dims,
+        const long num_samples) const {
 
         const MatrixX &frequencies = m_setting_->GetFrequencies();
         const Dtype *boundaries = m_setting_->boundaries.data();
 
-        ERL_DEBUG_ASSERT(frequencies.rows() >= dims, "Number of frequencies ({}) is less than the number of dimensions ({})", frequencies.rows(), dims);
+        ERL_DEBUG_ASSERT(
+            frequencies.rows() >= dims,
+            "Number of frequencies ({}) is less than the number of dimensions ({})",
+            frequencies.rows(),
+            dims);
 
         const long e = frequencies.cols();
         MatrixX eigen_functions(num_samples, e);
@@ -437,7 +551,9 @@ namespace erl::covariance {
             for (long i = 0; i < num_samples; ++i) {  // number of samples
                 ef[i] = alpha;
                 const Dtype *x = mat_x.col(i).data();
-                for (long d = 0; d < dims; ++d) { ef[i] *= std::sin(f[d] * (x[d] - coord_origin[d] + boundaries[d])); }
+                for (long d = 0; d < dims; ++d) {
+                    ef[i] *= std::sin(f[d] * (x[d] - coord_origin[d] + boundaries[d]));
+                }
             }
         }
         return eigen_functions;
@@ -455,7 +571,11 @@ namespace erl::covariance {
         const Dtype *boundaries = m_setting_->boundaries.data();
         long *grad_flags = vec_grad_flags.data();
 
-        ERL_DEBUG_ASSERT(frequencies.rows() >= dims, "Number of frequencies ({}) is less than the number of dimensions ({})", frequencies.rows(), dims);
+        ERL_DEBUG_ASSERT(
+            frequencies.rows() >= dims,
+            "Number of frequencies ({}) is less than the number of dimensions ({})",
+            frequencies.rows(),
+            dims);
 
         const long e = frequencies.cols();
         long n_grad = 0;
@@ -482,11 +602,31 @@ namespace erl::covariance {
                 }
 
                 if (long k = grad_flags[i]; k > 0) {
-                    for (long d = 0; d < dims; ++d, k += n_grad) { ef[k] = f[d] / std::tan(y[d]) * ef[i]; }
+                    for (long d = 0; d < dims; ++d, k += n_grad) {
+                        ef[k] = f[d] / std::tan(y[d]) * ef[i];
+                    }
                 }
             }
         }
         return eigen_functions;
+    }
+
+    template<typename Dtype>
+    typename ReducedRankCovariance<Dtype>::VectorX
+    ReducedRankCovariance<Dtype>::GetCoordOrigin() const {
+        return m_coord_origin_;
+    }
+
+    template<typename Dtype>
+    void
+    ReducedRankCovariance<Dtype>::SetCoordOrigin(const VectorX &coord_origin) {
+        m_coord_origin_ = coord_origin;
+    }
+
+    template<typename Dtype>
+    const typename ReducedRankCovariance<Dtype>::MatrixX &
+    ReducedRankCovariance<Dtype>::GetKtrain() const {
+        return m_mat_k_;
     }
 
     template<typename Dtype>
@@ -511,15 +651,29 @@ namespace erl::covariance {
     bool
     ReducedRankCovariance<Dtype>::operator==(const ReducedRankCovariance &other) const {
         if (m_setting_ == nullptr && other.m_setting_ != nullptr) { return false; }
-        if (m_setting_ != nullptr && (other.m_setting_ == nullptr || *m_setting_ != *other.m_setting_)) { return false; }
+        if (m_setting_ != nullptr &&
+            (other.m_setting_ == nullptr || *m_setting_ != *other.m_setting_)) {
+            return false;
+        }
         if (m_coord_origin_.size() != other.m_coord_origin_.size() ||
-            std::memcmp(m_coord_origin_.data(), other.m_coord_origin_.data(), m_coord_origin_.size() * sizeof(Dtype)) != 0) {
+            std::memcmp(
+                m_coord_origin_.data(),
+                other.m_coord_origin_.data(),
+                m_coord_origin_.size() * sizeof(Dtype)) != 0) {
             return false;
         }
-        if (m_mat_k_.size() != other.m_mat_k_.size() || std::memcmp(m_mat_k_.data(), other.m_mat_k_.data(), m_mat_k_.size() * sizeof(Dtype)) != 0) {
+        if (m_mat_k_.size() != other.m_mat_k_.size() ||  //
+            std::memcmp(                                 //
+                m_mat_k_.data(),
+                other.m_mat_k_.data(),
+                m_mat_k_.size() * sizeof(Dtype)) != 0) {
             return false;
         }
-        if (m_alpha_.size() != other.m_alpha_.size() || std::memcmp(m_alpha_.data(), other.m_alpha_.data(), m_alpha_.size() * sizeof(Dtype)) != 0) {
+        if (m_alpha_.size() != other.m_alpha_.size() ||  //
+            std::memcmp(                                 //
+                m_alpha_.data(),
+                other.m_alpha_.data(),
+                m_alpha_.size() * sizeof(Dtype)) != 0) {
             return false;
         }
         return true;
@@ -533,152 +687,80 @@ namespace erl::covariance {
 
     template<typename Dtype>
     bool
-    ReducedRankCovariance<Dtype>::Write(const std::string &filename) const {
-        ERL_INFO("Writing ReducedRankCovariance to file: {}", filename);
-        std::filesystem::create_directories(std::filesystem::path(filename).parent_path());
-        std::ofstream file(filename, std::ios_base::out | std::ios_base::binary);
-        if (!file.is_open()) {
-            ERL_WARN("Failed to open file: {}", filename);
-            return false;
-        }
-        const bool success = Write(file);
-        file.close();
-        return success;
-    }
-
-    template<typename Dtype>
-    bool
     ReducedRankCovariance<Dtype>::Write(std::ostream &s) const {
-        s << kFileHeader << std::endl  //
-          << "# (feel free to add / change comments, but leave the first line as it is!)" << std::endl
-          << "setting" << std::endl;
-        // write setting
-        if (!m_setting_->Write(s)) {
-            ERL_WARN("Failed to write setting.");
-            return false;
-        }
-        // write data
-        s << "coord_origin" << std::endl;
-        if (!common::SaveEigenMatrixToBinaryStream(s, m_coord_origin_)) {
-            ERL_WARN("Failed to write coord_origin.");
-            return false;
-        }
-        s << "mat_k" << std::endl;
-        if (!common::SaveEigenMatrixToBinaryStream(s, m_mat_k_)) {
-            ERL_WARN("Failed to write mat_k.");
-            return false;
-        }
-        s << "alpha" << std::endl;
-        if (!common::SaveEigenMatrixToBinaryStream(s, m_alpha_)) {
-            ERL_WARN("Failed to write alpha.");
-            return false;
-        }
-        s << "end_of_ReducedRankCovariance" << std::endl;
-        return s.good();
-    }
-
-    template<typename Dtype>
-    bool
-    ReducedRankCovariance<Dtype>::Read(const std::string &filename) {
-        ERL_INFO("Reading ReducedRankCovariance from file: {}", std::filesystem::absolute(filename));
-        std::ifstream file(filename.c_str(), std::ios_base::in | std::ios_base::binary);
-        if (!file.is_open()) {
-            ERL_WARN("Failed to open file: {}", filename.c_str());
-            return false;
-        }
-        const bool success = Read(file);
-        file.close();
-        return success;
+        static const std::vector<std::pair<
+            const char *,
+            std::function<bool(const ReducedRankCovariance *, std::ostream &)>>>
+            token_function_pairs = {
+                {
+                    "setting",
+                    [](const ReducedRankCovariance *self, std::ostream &stream) {
+                        return self->m_setting_->Write(stream) && stream.good();
+                    },
+                },
+                {
+                    "coord_origin",
+                    [](const ReducedRankCovariance *self, std::ostream &stream) {
+                        return common::SaveEigenMatrixToBinaryStream(
+                                   stream,
+                                   self->m_coord_origin_) &&
+                               stream.good();
+                    },
+                },
+                {
+                    "mat_k",
+                    [](const ReducedRankCovariance *self, std::ostream &stream) {
+                        return common::SaveEigenMatrixToBinaryStream(stream, self->m_mat_k_) &&
+                               stream.good();
+                    },
+                },
+                {
+                    "alpha",
+                    [](const ReducedRankCovariance *self, std::ostream &stream) {
+                        return common::SaveEigenMatrixToBinaryStream(stream, self->m_alpha_) &&
+                               stream.good();
+                    },
+                },
+            };
+        return common::WriteTokens(s, this, token_function_pairs);
     }
 
     template<typename Dtype>
     bool
     ReducedRankCovariance<Dtype>::Read(std::istream &s) {
-        if (!s.good()) {
-            ERL_WARN("Input stream is not ready for reading");
-            return false;
-        }
-
-        // check if the first line is valid
-        std::string line;
-        std::getline(s, line);
-        if (line.compare(0, kFileHeader.length(), kFileHeader) != 0) {  // check if the first line is valid
-            ERL_WARN("Header does not start with \"{}\"", kFileHeader.c_str());
-            return false;
-        }
-
-        auto skip_line = [&s] {
-            char c;
-            do { c = static_cast<char>(s.get()); } while (s.good() && c != '\n');
-        };
-
-        static const char *tokens[] = {
-            "setting",
-            "coord_origin",
-            "mat_k",
-            "alpha",
-            "end_of_ReducedRankCovariance",
-        };
-
-        // read data
-        std::string token;
-        int token_idx = 0;
-        while (s.good()) {
-            s >> token;
-            if (token.compare(0, 1, "#") == 0) {
-                skip_line();  // comment line, skip forward until the end of the line.
-                continue;
-            }
-            // non-comment line
-            if (token != tokens[token_idx]) {
-                ERL_WARN("Expected token {}, got {}.", tokens[token_idx], token);  // check token
-                return false;
-            }
-            // reading state machine
-            switch (token_idx) {
-                case 0: {         // setting
-                    skip_line();  // skip the line to read the binary data section
-                    if (!m_setting_->Read(s)) {
-                        ERL_WARN("Failed to read setting.");
-                        return false;
-                    }
-                    break;
-                }
-                case 1: {  // coord_origin
-                    skip_line();
-                    if (!common::LoadEigenMatrixFromBinaryStream(s, m_coord_origin_)) {
-                        ERL_WARN("Failed to read coord_origin.");
-                        return false;
-                    }
-                    break;
-                }
-                case 2: {  // mat_k
-                    skip_line();
-                    if (!common::LoadEigenMatrixFromBinaryStream(s, m_mat_k_)) {
-                        ERL_WARN("Failed to read mat_k.");
-                        return false;
-                    }
-                    break;
-                }
-                case 3: {  // alpha
-                    skip_line();
-                    if (!common::LoadEigenMatrixFromBinaryStream(s, m_alpha_)) {
-                        ERL_WARN("Failed to read alpha.");
-                        return false;
-                    }
-                    break;
-                }
-                case 4: {  // end_of_ReducedRankCovariance
-                    skip_line();
-                    return true;
-                }
-                default: {  // should not reach here
-                    ERL_FATAL("Internal error, should not reach here.");
-                }
-            }
-            ++token_idx;
-        }
-        ERL_WARN("Failed to read Covariance. Truncated file?");
-        return false;  // should not reach here
+        static const std::vector<
+            std::pair<const char *, std::function<bool(ReducedRankCovariance *, std::istream &)>>>
+            token_function_pairs = {
+                {
+                    "setting",
+                    [](ReducedRankCovariance *self, std::istream &stream) {
+                        return self->m_setting_->Read(stream) && stream.good();
+                    },
+                },
+                {
+                    "coord_origin",
+                    [](ReducedRankCovariance *self, std::istream &stream) {
+                        return common::LoadEigenMatrixFromBinaryStream(
+                                   stream,
+                                   self->m_coord_origin_) &&
+                               stream.good();
+                    },
+                },
+                {
+                    "mat_k",
+                    [](ReducedRankCovariance *self, std::istream &stream) {
+                        return common::LoadEigenMatrixFromBinaryStream(stream, self->m_mat_k_) &&
+                               stream.good();
+                    },
+                },
+                {
+                    "alpha",
+                    [](ReducedRankCovariance *self, std::istream &stream) {
+                        return common::LoadEigenMatrixFromBinaryStream(stream, self->m_alpha_) &&
+                               stream.good();
+                    },
+                },
+            };
+        return common::ReadTokens(s, this, token_function_pairs);
     }
 }  // namespace erl::covariance
