@@ -38,7 +38,13 @@ namespace erl::covariance {
                     VectorX::LinSpaced(dim_size, f, static_cast<Dtype>(dim_size) * f)
                         .transpose()
                         .replicate(stride, n_copies / stride);
+#if EIGEN_VERSION_AT_LEAST(3, 4, 0)
                 m_frequencies_.row(i) << frequencies.reshaped(total_size, 1).transpose();
+#else
+                for (long c = 0; c < total_size; ++c) {
+                    m_frequencies_(i, c) = frequencies.data()[c];
+                }
+#endif
             }
 
             VectorX freq_squared_norm = m_frequencies_.colwise().squaredNorm();
@@ -49,8 +55,17 @@ namespace erl::covariance {
                     return freq_squared_norm[i] < freq_squared_norm[j];
                 });
                 indices.resize(max_num_basis);
+#if EIGEN_VERSION_AT_LEAST(3, 4, 0)
                 VectorX freq_squared_norm_new = freq_squared_norm(indices);
                 MatrixX frequencies_new = m_frequencies_(Eigen::indexing::all, indices);
+#else
+                VectorX freq_squared_norm_new(indices.size());
+                MatrixX frequencies_new(m_frequencies_.rows(), static_cast<long>(indices.size()));
+                for (long i = 0; i < static_cast<long>(indices.size()); ++i) {
+                    freq_squared_norm_new[i] = freq_squared_norm[indices[i]];
+                    frequencies_new.col(i) = m_frequencies_.col(indices[i]);
+                }
+#endif
                 m_frequencies_.swap(frequencies_new);
                 freq_squared_norm.swap(freq_squared_norm_new);
             }

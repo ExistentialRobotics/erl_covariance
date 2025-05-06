@@ -14,10 +14,11 @@ BindCovarianceImpl(const py::module &m, const char *name) {
 
     auto py_covariance = py::class_<T, std::shared_ptr<T>>(m, name);
 
-    py::class_<typename T::Setting, YamlableBase, std::shared_ptr<typename T::Setting>>(py_covariance, "Setting")
+    py::class_<typename T::Setting, YamlableBase, std::shared_ptr<typename T::Setting>>(
+        py_covariance,
+        "Setting")
         .def(py::init())
         .def_readwrite("x_dim", &T::Setting::x_dim)
-        .def_readwrite("alpha", &T::Setting::alpha)
         .def_readwrite("scale", &T::Setting::scale)
         .def_readwrite("scale_mix", &T::Setting::scale_mix)
         .def_readwrite("weights", &T::Setting::weights);
@@ -40,33 +41,48 @@ BindCovarianceImpl(const py::module &m, const char *name) {
             py::arg("predict_gradient"))
         .def(
             "compute_ktrain",
-            [](const T &self, const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, VectorX alpha_vec) {
+            [](T &self,
+               const Eigen::Ref<const MatrixX> &mat_x,
+               const long num_samples,
+               const MatrixX &mat_alpha) {
                 const long n = mat_x.cols();
-                if (n == 0) { return py::make_tuple(py::none(), py::none()); }
+                if (n == 0) { return py::dict(); }
                 const auto [rows, cols] = self.GetMinimumKtrainSize(n, 0, 0);
-                MatrixX k_mat(rows, cols);
-                ERL_ASSERTM(alpha_vec.size() == cols, "alpha_vec has wrong size.");
-                (void) self.ComputeKtrain(mat_x, num_samples, k_mat, alpha_vec);
-                return py::make_tuple(k_mat, alpha_vec);
+                ERL_ASSERTM(mat_alpha.rows() == cols, "mat_alpha.rows() should be {}.", cols);
+                MatrixX mat_k(rows, cols);
+                MatrixX mat_alpha_out = mat_alpha;
+                (void) self.ComputeKtrain(mat_x, num_samples, mat_k, mat_alpha_out);
+                py::dict result;
+                result["mat_k"] = mat_k;
+                result["mat_alpha"] = mat_alpha_out;
+                return result;
             },
             py::arg("mat_x"),
             py::arg("num_samples"),
-            py::arg("alpha_vec"))
+            py::arg("mat_alpha"))
         .def(
             "compute_ktrain",
-            [](const T &self, const Eigen::Ref<const MatrixX> &mat_x, const Eigen::Ref<const VectorX> &vec_var_y, const long num_samples, VectorX alpha_vec) {
+            [](T &self,
+               const Eigen::Ref<const MatrixX> &mat_x,
+               const Eigen::Ref<const VectorX> &vec_var_y,
+               const long num_samples,
+               const MatrixX &mat_alpha) {
                 const long n = mat_x.cols();
-                if (n == 0) { return py::make_tuple(py::none(), py::none()); }
+                if (n == 0) { return py::dict(); }
                 const auto [rows, cols] = self.GetMinimumKtrainSize(n, 0, 0);
-                MatrixX k_mat(rows, cols);
-                ERL_ASSERTM(alpha_vec.size() == cols, "alpha_vec has wrong size. It should be {}.", cols);
-                (void) self.ComputeKtrain(mat_x, vec_var_y, num_samples, k_mat, alpha_vec);
-                return py::make_tuple(k_mat, alpha_vec);
+                ERL_ASSERTM(mat_alpha.rows() == cols, "mat_alpha.rows() should be {}.", cols);
+                MatrixX mat_k(rows, cols);
+                MatrixX mat_alpha_out = mat_alpha;
+                (void) self.ComputeKtrain(mat_x, vec_var_y, num_samples, mat_k, mat_alpha_out);
+                py::dict result;
+                result["mat_k"] = mat_k;
+                result["mat_alpha"] = mat_alpha_out;
+                return result;
             },
             py::arg("mat_x"),
             py::arg("vec_var_y"),
             py::arg("num_samples"),
-            py::arg("alpha_vec"))
+            py::arg("mat_alpha"))
         .def(
             "compute_ktest",
             [](const T &self,
@@ -88,40 +104,69 @@ BindCovarianceImpl(const py::module &m, const char *name) {
             py::arg("num_samples2"))
         .def(
             "compute_ktrain_with_gradient",
-            [](const T &self, const Eigen::Ref<const MatrixX> &mat_x, const long num_samples, Eigen::VectorXl vec_grad_flags, VectorX alpha_vec) {
+            [](T &self,
+               const Eigen::Ref<const MatrixX> &mat_x,
+               const long num_samples,
+               const Eigen::VectorXl &vec_grad_flags,
+               const MatrixX &mat_alpha) {
                 const long n = mat_x.cols();
-                if (n == 0) { return py::make_tuple(py::none(), py::none()); }
+                if (n == 0) { return py::dict(); }
                 const long dim = mat_x.rows();
                 const long n_grad = vec_grad_flags.cast<long>().sum();
                 const auto [rows, cols] = self.GetMinimumKtrainSize(n, n_grad, dim);
-                MatrixX k_mat(rows, cols);
-                ERL_ASSERTM(alpha_vec.size() == cols, "alpha_vec has wrong size. It should be {}.", cols);
-                (void) self.ComputeKtrainWithGradient(mat_x, num_samples, vec_grad_flags, k_mat, alpha_vec);
-                return py::make_tuple(k_mat, alpha_vec);
+                Eigen::VectorXl vec_grad_flags_out = vec_grad_flags;
+                MatrixX mat_k(rows, cols);
+                MatrixX mat_alpha_out = mat_alpha;
+                ERL_ASSERTM(mat_alpha.rows() == cols, "mat_alpha.rows() should be {}.", cols);
+                (void) self.ComputeKtrainWithGradient(
+                    mat_x,
+                    num_samples,
+                    vec_grad_flags_out,
+                    mat_k,
+                    mat_alpha_out);
+                py::dict result;
+                result["mat_k"] = mat_k;
+                result["vec_grad_flags"] = vec_grad_flags_out;
+                result["mat_alpha"] = mat_alpha_out;
+                return result;
             },
             py::arg("mat_x"),
             py::arg("num_samples"),
             py::arg("vec_grad_flags"),
-            py::arg("alpha_vec"))
+            py::arg("mat_alpha"))
         .def(
             "compute_ktrain_with_gradient",
-            [](const T &self,
+            [](T &self,
                const Eigen::Ref<const MatrixX> &mat_x,
                const long num_samples,
-               Eigen::VectorXl vec_grad_flags,
+               const Eigen::VectorXl &vec_grad_flags,
                const Eigen::Ref<const VectorX> &vec_var_x,
                const Eigen::Ref<const VectorX> &vec_var_y,
                const Eigen::Ref<const VectorX> &vec_var_grad,
-               VectorX alpha_vec) {
+               const MatrixX &mat_alpha) {
                 const long n = mat_x.cols();
-                if (n == 0) { return py::make_tuple(py::none(), py::none()); }
+                if (n == 0) { return py::dict(); }
                 const long dim = mat_x.rows();
                 const long n_grad = vec_grad_flags.cast<long>().sum();
                 const auto [rows, cols] = self.GetMinimumKtrainSize(n, n_grad, dim);
-                MatrixX k_mat(rows, cols);
-                ERL_ASSERTM(alpha_vec.size() == cols, "alpha_vec has wrong size. It should be {}.", cols);
-                (void) self.ComputeKtrainWithGradient(mat_x, num_samples, vec_grad_flags, vec_var_x, vec_var_y, vec_var_grad, k_mat, alpha_vec);
-                return py::make_tuple(k_mat, alpha_vec);
+                Eigen::VectorXl vec_grad_flags_out = vec_grad_flags;
+                MatrixX mat_k(rows, cols);
+                MatrixX mat_alpha_out = mat_alpha;
+                ERL_ASSERTM(mat_alpha.rows() == cols, "mat_alpha.rows() should be {}.", cols);
+                (void) self.ComputeKtrainWithGradient(
+                    mat_x,
+                    num_samples,
+                    vec_grad_flags_out,
+                    vec_var_x,
+                    vec_var_y,
+                    vec_var_grad,
+                    mat_k,
+                    mat_alpha_out);
+                py::dict result;
+                result["mat_k"] = mat_k;
+                result["vec_grad_flags"] = vec_grad_flags_out;
+                result["mat_alpha"] = mat_alpha_out;
+                return result;
             },
             py::arg("mat_x"),
             py::arg("num_samples"),
@@ -129,7 +174,7 @@ BindCovarianceImpl(const py::module &m, const char *name) {
             py::arg("vec_var_x"),
             py::arg("vec_var_y"),
             py::arg("vec_var_grad"),
-            py::arg("alpha_vec"))
+            py::arg("mat_alpha"))
         .def(
             "compute_ktest_with_gradient",
             [](const T &self,
@@ -144,9 +189,17 @@ BindCovarianceImpl(const py::module &m, const char *name) {
                 if (n1 == 0 || n2 == 0) { return {}; }
                 const long dim = mat_x1.rows();
                 const long n_grad = vec_grad1_flags.cast<long>().sum();
-                const auto [rows, cols] = self.GetMinimumKtestSize(n1, n_grad, dim, n2, predict_gradient);
+                const auto [rows, cols] =
+                    self.GetMinimumKtestSize(n1, n_grad, dim, n2, predict_gradient);
                 MatrixX k_mat(rows, cols);
-                (void) self.ComputeKtestWithGradient(mat_x1, num_samples1, vec_grad1_flags, mat_x2, num_samples2, predict_gradient, k_mat);
+                (void) self.ComputeKtestWithGradient(
+                    mat_x1,
+                    num_samples1,
+                    vec_grad1_flags,
+                    mat_x2,
+                    num_samples2,
+                    predict_gradient,
+                    k_mat);
                 return k_mat;
             },
             py::arg("mat_x1"),

@@ -20,7 +20,11 @@ namespace erl::covariance {
         GetCovarianceType() const override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k, MatrixX & /*mat_alpha*/) override;
+        ComputeKtrain(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            long num_samples,
+            MatrixX &mat_k,
+            MatrixX & /*mat_alpha*/) override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k);
@@ -34,11 +38,19 @@ namespace erl::covariance {
             MatrixX & /*mat_alpha*/) override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, const Eigen::Ref<const VectorX> &vec_var_y, long num_samples, MatrixX &mat_k);
+        ComputeKtrain(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            const Eigen::Ref<const VectorX> &vec_var_y,
+            long num_samples,
+            MatrixX &mat_k);
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtest(const Eigen::Ref<const MatrixX> &mat_x1, long num_samples1, const Eigen::Ref<const MatrixX> &mat_x2, long num_samples2, MatrixX &mat_k)
-            const override;
+        ComputeKtest(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples1,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_samples2,
+            MatrixX &mat_k) const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestSparse(
@@ -58,7 +70,11 @@ namespace erl::covariance {
             MatrixX & /*mat_alpha*/) override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrainWithGradient(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, Eigen::VectorXl &vec_grad_flags, MatrixX &mat_k);
+        ComputeKtrainWithGradient(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            long num_samples,
+            Eigen::VectorXl &vec_grad_flags,
+            MatrixX &mat_k);
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(

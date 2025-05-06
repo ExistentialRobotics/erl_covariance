@@ -1,3 +1,4 @@
+#include "erl_common/block_timer.hpp"
 #include "erl_common/eigen.hpp"
 #include "erl_common/test_helper.hpp"
 
@@ -11,7 +12,8 @@ TEST(LLT, Adj) {
     rand_mat.triangularView<Eigen::Upper>() = rand_mat.transpose().triangularView<Eigen::Upper>();
     std::cout << rand_mat << std::endl;
 
-    Eigen::MatrixXd mat = erl::common::LoadEigenMatrixFromTextFile<double>(gtest_src_dir / "matern32_ktrain.txt");
+    Eigen::MatrixXd mat =
+        erl::common::LoadEigenMatrixFromTextFile<double>(gtest_src_dir / "matern32_ktrain.txt");
     Eigen::VectorXd alpha = Eigen::VectorXd::Ones(mat.cols());
 
     constexpr long n = 100;
