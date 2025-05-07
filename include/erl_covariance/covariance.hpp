@@ -21,7 +21,7 @@ namespace erl::covariance {
         using VectorX = Eigen::VectorX<Dtype>;
 
         // structure for holding the parameters
-        struct Setting : common::Yamlable<Setting> {
+        struct Setting : public common::Yamlable<Setting> {
             long x_dim = 2;    // dimension of input space
             Dtype scale = 1.;  // scale length
 
