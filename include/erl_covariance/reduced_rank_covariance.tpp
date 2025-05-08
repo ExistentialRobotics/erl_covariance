@@ -320,16 +320,15 @@ namespace erl::covariance {
             mat_alpha.rows(),
             e);
 
-        const MatrixX phi =
-            ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
-        const MatrixX mat_y = mat_alpha.topRows(phi.rows());                              // (m, D)
+        // (m, e)
+        MatrixX phi = ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);
+        const MatrixX mat_y = mat_alpha.topRows(phi.rows());  // (m, D)
         const VectorX inv_spectral_densities = m_setting_->GetInvSpectralDensities();
         const bool accumulated = m_setting_->accumulated;
 
-        if (m_alpha_.size() == 0) { m_alpha_ = MatrixX::Zero(e, mat_alpha.cols()); }  // (e, D)
-
-        // phi = [phi_1, phi_2, ..., phi_e]
-        // K = phi^T * phi
+        // (e, D)
+        if (accumulated && m_alpha_.size() == 0) { m_alpha_ = MatrixX::Zero(e, mat_alpha.cols()); }
+        // K = phi^T * phi, phi = [phi_1, phi_2, ..., phi_e]
         for (long col = 0; col < e; ++col) {
             auto phi_col = phi.col(col);
 
@@ -401,13 +400,16 @@ namespace erl::covariance {
             mat_alpha.rows(),
             e);
 
-        const MatrixX phi =
-            ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);  // (m, e)
+        // (m, e)
+        MatrixX phi = ComputeEigenFunctionsWithGradient(mat_x, dims, num_samples, vec_grad_flags);
         const long m = phi.rows();
         const long n_grad = (m - num_samples) / dims;  // m = num_samples + n_grad * dims
         const MatrixX mat_y = mat_alpha.topRows(m);
         const VectorX inv_spectral_densities = m_setting_->GetInvSpectralDensities();
         const bool accumulated = m_setting_->accumulated;
+
+        // (e, D)
+        if (accumulated && m_alpha_.size() == 0) { m_alpha_ = MatrixX::Zero(e, mat_alpha.cols()); }
 
         VectorX inv_sigmas(m);
         VectorX inv_sigmas_phi_i(m);
