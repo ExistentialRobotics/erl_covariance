@@ -217,11 +217,11 @@ matern32_new2(
         if (vec_grad_flags[j]) {
             for (long k = 0, kj = grad_indices[j]; k < dim; ++k, kj += n_grad) {
                 k_mat(kj, kj) = b;  // cov(df_j/dx_k, df_j/dx_k)
-                k_mat(j, kj) = 0.;  // cov(f_j, df_j/dx_k)
-                k_mat(kj, j) = 0.;  // cov(df_j/dx_k, f_j)
+                k_mat(j, kj) = 0.0f;  // cov(f_j, df_j/dx_k)
+                k_mat(kj, j) = 0.0f;  // cov(df_j/dx_k, f_j)
                 for (long l = k + 1, lj = kj + n_grad; l < dim; ++l, lj += n_grad) {
-                    k_mat(kj, lj) = 0.;  // cov(df_j/dx_k, df_j/dx_l)
-                    k_mat(lj, kj) = 0.;  // cov(df_j/dx_l, df_j/dx_k)
+                    k_mat(kj, lj) = 0.0f;  // cov(df_j/dx_k, df_j/dx_l)
+                    k_mat(lj, kj) = 0.0f;  // cov(df_j/dx_l, df_j/dx_k)
                 }
             }
         }
