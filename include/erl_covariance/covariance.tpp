@@ -18,10 +18,10 @@ namespace erl::covariance {
     bool
     Covariance<Dtype>::Setting::YamlConvertImpl::decode(const YAML::Node &node, Setting &setting) {
         if (!node.IsMap()) { return false; }
-        ERL_YAML_LOAD_ATTR_TYPE(node, setting, x_dim, long);
-        ERL_YAML_LOAD_ATTR_TYPE(node, setting, scale, Dtype);
-        ERL_YAML_LOAD_ATTR_TYPE(node, setting, scale_mix, Dtype);
-        ERL_YAML_LOAD_ATTR_TYPE(node, setting, weights, VectorX);
+        ERL_YAML_LOAD_ATTR(node, setting, x_dim);
+        ERL_YAML_LOAD_ATTR(node, setting, scale);
+        ERL_YAML_LOAD_ATTR(node, setting, scale_mix);
+        ERL_YAML_LOAD_ATTR(node, setting, weights);
         return true;
     }
 

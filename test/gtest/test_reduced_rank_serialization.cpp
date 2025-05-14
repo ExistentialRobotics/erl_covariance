@@ -15,22 +15,22 @@ TEST(ReducedRank, Serialization) {
 
     {
         EXPECT_TRUE(
-            Serialization<ReducedRankMatern32_3d>::Write("reduced_rank_matern32.bin", *matern32));
+            Serialization<ReducedRankMatern32_3d>::Write("reduced_rank_matern32.bin", matern32));
         ReducedRankMatern32_3d matern32_read(std::make_shared<ReducedRankMatern32_3d::Setting>());
         EXPECT_TRUE(Serialization<ReducedRankMatern32_3d>::Read(
             "reduced_rank_matern32.bin",
-            matern32_read));
+            &matern32_read));
         EXPECT_TRUE(*matern32 == matern32_read);
     }
 
     matern32->BuildSpectralDensities();
     {
         EXPECT_TRUE(
-            Serialization<ReducedRankMatern32_3d>::Write("reduced_rank_matern32.bin", *matern32));
+            Serialization<ReducedRankMatern32_3d>::Write("reduced_rank_matern32.bin", matern32));
         ReducedRankMatern32_3d matern32_read(std::make_shared<ReducedRankMatern32_3d::Setting>());
         EXPECT_TRUE(Serialization<ReducedRankMatern32_3d>::Read(
             "reduced_rank_matern32.bin",
-            matern32_read));
+            &matern32_read));
         EXPECT_TRUE(*matern32 == matern32_read);
     }
 
@@ -46,11 +46,11 @@ TEST(ReducedRank, Serialization) {
 
     {
         EXPECT_TRUE(
-            Serialization<ReducedRankMatern32_3d>::Write("reduced_rank_matern32.bin", *matern32));
+            Serialization<ReducedRankMatern32_3d>::Write("reduced_rank_matern32.bin", matern32));
         ReducedRankMatern32_3d matern32_read(std::make_shared<ReducedRankMatern32_3d::Setting>());
         EXPECT_TRUE(Serialization<ReducedRankMatern32_3d>::Read(
             "reduced_rank_matern32.bin",
-            matern32_read));
+            &matern32_read));
         EXPECT_TRUE(*matern32 == matern32_read);
     }
 }

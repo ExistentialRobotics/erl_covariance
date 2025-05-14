@@ -12,9 +12,9 @@ TEST(Covariance, Serialization) {
     auto matern32 = std::make_shared<Matern32_3d>(kernel_setting);
 
     {
-        EXPECT_TRUE(Serialization<Matern32_3d>::Write("matern32.bin", *matern32));
+        EXPECT_TRUE(Serialization<Matern32_3d>::Write("matern32.bin", matern32));
         Matern32_3d matern32_read(std::make_shared<Matern32_3d::Setting>());
-        EXPECT_TRUE(Serialization<Matern32_3d>::Read("matern32.bin", matern32_read));
+        EXPECT_TRUE(Serialization<Matern32_3d>::Read("matern32.bin", &matern32_read));
         EXPECT_TRUE(*matern32 == matern32_read);
     }
 
@@ -27,9 +27,9 @@ TEST(Covariance, Serialization) {
     (void) matern32->ComputeKtrainWithGradient(mat_x, mat_x.cols(), vec_grad_flags, k_mat1);
 
     {
-        EXPECT_TRUE(Serialization<Matern32_3d>::Write("matern32.bin", *matern32));
+        EXPECT_TRUE(Serialization<Matern32_3d>::Write("matern32.bin", matern32));
         Matern32_3d matern32_read(std::make_shared<Matern32_3d::Setting>());
-        EXPECT_TRUE(Serialization<Matern32_3d>::Read("matern32.bin", matern32_read));
+        EXPECT_TRUE(Serialization<Matern32_3d>::Read("matern32.bin", &matern32_read));
         EXPECT_TRUE(*matern32 == matern32_read);
     }
 }

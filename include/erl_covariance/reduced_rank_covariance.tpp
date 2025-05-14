@@ -120,10 +120,10 @@ namespace erl::covariance {
         const YAML::Node &node,
         Setting &setting) {
         if (!Super::Setting::YamlConvertImpl::decode(node, setting)) { return false; }
-        ERL_YAML_LOAD_ATTR_TYPE(node, setting, max_num_basis, long);
-        ERL_YAML_LOAD_ATTR_TYPE(node, setting, num_basis, Eigen::VectorXl);
-        ERL_YAML_LOAD_ATTR_TYPE(node, setting, boundaries, VectorX);
-        ERL_YAML_LOAD_ATTR_TYPE(node, setting, accumulated, bool);
+        ERL_YAML_LOAD_ATTR(node, setting, max_num_basis);
+        ERL_YAML_LOAD_ATTR(node, setting, num_basis);
+        ERL_YAML_LOAD_ATTR(node, setting, boundaries);
+        ERL_YAML_LOAD_ATTR(node, setting, accumulated);
         return true;
     }
 
