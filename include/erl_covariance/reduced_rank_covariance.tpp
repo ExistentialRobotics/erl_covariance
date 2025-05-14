@@ -672,27 +672,10 @@ namespace erl::covariance {
             (other.m_setting_ == nullptr || *m_setting_ != *other.m_setting_)) {
             return false;
         }
-        if (m_coord_origin_.size() != other.m_coord_origin_.size() ||
-            std::memcmp(
-                m_coord_origin_.data(),
-                other.m_coord_origin_.data(),
-                m_coord_origin_.size() * sizeof(Dtype)) != 0) {
-            return false;
-        }
-        if (m_mat_k_.size() != other.m_mat_k_.size() ||  //
-            std::memcmp(                                 //
-                m_mat_k_.data(),
-                other.m_mat_k_.data(),
-                m_mat_k_.size() * sizeof(Dtype)) != 0) {
-            return false;
-        }
-        if (m_alpha_.size() != other.m_alpha_.size() ||  //
-            std::memcmp(                                 //
-                m_alpha_.data(),
-                other.m_alpha_.data(),
-                m_alpha_.size() * sizeof(Dtype)) != 0) {
-            return false;
-        }
+        using namespace common;
+        if (!SafeEigenMatrixEqual(m_coord_origin_, other.m_coord_origin_)) { return false; }
+        if (!SafeEigenMatrixEqual(m_mat_k_, other.m_mat_k_)) { return false; }
+        if (!SafeEigenMatrixEqual(m_alpha_, other.m_alpha_)) { return false; }
         return true;
     }
 
