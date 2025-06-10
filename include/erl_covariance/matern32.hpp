@@ -109,6 +109,14 @@ namespace erl::covariance {
     using Matern32_3f = Matern32<float, 3>;
     using Matern32_Xf = Matern32<float, Eigen::Dynamic>;
 
-}  // namespace erl::covariance
+    extern template class Matern32<double, 1>;
+    extern template class Matern32<double, 2>;
+    extern template class Matern32<double, 3>;
+    extern template class Matern32<double, Eigen::Dynamic>;
 
-#include "matern32.tpp"
+    extern template class Matern32<float, 1>;
+    extern template class Matern32<float, 2>;
+    extern template class Matern32<float, 3>;
+    extern template class Matern32<float, Eigen::Dynamic>;
+
+}  // namespace erl::covariance

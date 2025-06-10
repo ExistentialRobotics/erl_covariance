@@ -1,4 +1,4 @@
-#pragma once
+#include "erl_covariance/matern32.hpp"
 
 #include <cmath>
 
@@ -686,4 +686,14 @@ namespace erl::covariance {
         }
         return {n_rows, n_cols};
     }
+
+    template class Matern32<double, 1>;
+    template class Matern32<double, 2>;
+    template class Matern32<double, 3>;
+    template class Matern32<double, Eigen::Dynamic>;
+
+    template class Matern32<float, 1>;
+    template class Matern32<float, 2>;
+    template class Matern32<float, 3>;
+    template class Matern32<float, Eigen::Dynamic>;
 }  // namespace erl::covariance

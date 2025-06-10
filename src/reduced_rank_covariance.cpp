@@ -1,4 +1,6 @@
-#pragma once
+#include "erl_covariance/reduced_rank_covariance.hpp"
+
+#include "erl_common/serialization.hpp"
 
 namespace erl::covariance {
     template<typename Dtype>
@@ -763,4 +765,7 @@ namespace erl::covariance {
             };
         return common::ReadTokens(s, this, token_function_pairs);
     }
+
+    template class ReducedRankCovariance<double>;
+    template class ReducedRankCovariance<float>;
 }  // namespace erl::covariance

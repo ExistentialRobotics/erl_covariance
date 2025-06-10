@@ -1,4 +1,4 @@
-#pragma once
+#include "erl_covariance/radial_bias_function.hpp"
 
 namespace erl::covariance {
     template<typename Dtype, int Dim>
@@ -729,4 +729,14 @@ namespace erl::covariance {
         }
         return {n_rows, n_cols};
     }
+
+    template class RadialBiasFunction<double, 1>;
+    template class RadialBiasFunction<double, 2>;
+    template class RadialBiasFunction<double, 3>;
+    template class RadialBiasFunction<double, Eigen::Dynamic>;
+
+    template class RadialBiasFunction<float, 1>;
+    template class RadialBiasFunction<float, 2>;
+    template class RadialBiasFunction<float, 3>;
+    template class RadialBiasFunction<float, Eigen::Dynamic>;
 }  // namespace erl::covariance

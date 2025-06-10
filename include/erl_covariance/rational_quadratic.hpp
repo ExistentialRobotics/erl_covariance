@@ -109,6 +109,14 @@ namespace erl::covariance {
     using RationalQuadratic3f = RationalQuadratic<float, 3>;
     using RationalQuadraticXf = RationalQuadratic<float, Eigen::Dynamic>;
 
-}  // namespace erl::covariance
+    extern template class RationalQuadratic<double, 1>;
+    extern template class RationalQuadratic<double, 2>;
+    extern template class RationalQuadratic<double, 3>;
+    extern template class RationalQuadratic<double, Eigen::Dynamic>;
 
-#include "rational_quadratic.tpp"
+    extern template class RationalQuadratic<float, 1>;
+    extern template class RationalQuadratic<float, 2>;
+    extern template class RationalQuadratic<float, 3>;
+    extern template class RationalQuadratic<float, Eigen::Dynamic>;
+
+}  // namespace erl::covariance

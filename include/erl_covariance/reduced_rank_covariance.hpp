@@ -198,9 +198,10 @@ namespace erl::covariance {
         Read(std::istream &s) override;
     };
 
-}  // namespace erl::covariance
+    extern template class ReducedRankCovariance<double>;
+    extern template class ReducedRankCovariance<float>;
 
-#include "reduced_rank_covariance.tpp"
+}  // namespace erl::covariance
 
 template<>
 struct YAML::convert<erl::covariance::ReducedRankCovariance<double>::Setting>

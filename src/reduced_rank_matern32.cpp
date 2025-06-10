@@ -1,4 +1,4 @@
-#pragma once
+#include "erl_covariance/reduced_rank_matern32.hpp"
 
 namespace erl::covariance {
     template<typename Dtype, int Dim>
@@ -52,4 +52,13 @@ namespace erl::covariance {
         return s;
     }
 
+    template class ReducedRankMatern32<double, 1>;
+    template class ReducedRankMatern32<double, 2>;
+    template class ReducedRankMatern32<double, 3>;
+    template class ReducedRankMatern32<double, Eigen::Dynamic>;
+
+    template class ReducedRankMatern32<float, 1>;
+    template class ReducedRankMatern32<float, 2>;
+    template class ReducedRankMatern32<float, 3>;
+    template class ReducedRankMatern32<float, Eigen::Dynamic>;
 }  // namespace erl::covariance

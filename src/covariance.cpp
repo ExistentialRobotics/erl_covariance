@@ -1,4 +1,4 @@
-#pragma once
+#include "erl_covariance/covariance.hpp"
 
 #include "erl_common/serialization.hpp"
 
@@ -39,26 +39,6 @@ namespace erl::covariance {
         const std::string &covariance_type,
         std::shared_ptr<Setting> setting) {
         return Factory::GetInstance().Create(covariance_type, std::move(setting));
-    }
-
-    template<typename Dtype>
-    template<typename Derived>
-    bool
-    Covariance<Dtype>::Register(std::string covariance_type) {
-        return Factory::GetInstance().template Register<Derived>(
-            covariance_type,
-            [](std::shared_ptr<Setting> setting) {
-                auto covariance_setting =
-                    std::dynamic_pointer_cast<typename Derived::Setting>(setting);
-                if (setting == nullptr) {
-                    covariance_setting = std::make_shared<typename Derived::Setting>();
-                }
-                ERL_ASSERTM(
-                    covariance_setting != nullptr,
-                    "Failed to cast setting for derived Covariance of type {}.",
-                    typeid(Derived).name());
-                return std::make_shared<Derived>(covariance_setting);
-            });
     }
 
     template<typename Dtype>
@@ -191,4 +171,7 @@ namespace erl::covariance {
     template<typename Dtype>
     Covariance<Dtype>::Covariance(std::shared_ptr<Setting> setting)
         : m_setting_(std::move(setting)) {}
+
+    template class Covariance<double>;
+    template class Covariance<float>;
 }  // namespace erl::covariance

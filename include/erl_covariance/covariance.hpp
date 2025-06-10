@@ -76,7 +76,22 @@ namespace erl::covariance {
 
         template<typename Derived>
         static bool
-        Register(std::string covariance_type = "");
+        Register(std::string covariance_type = "") {
+            return Factory::GetInstance().template Register<Derived>(
+                covariance_type,
+                [](std::shared_ptr<Setting> setting) {
+                    auto covariance_setting =
+                        std::dynamic_pointer_cast<typename Derived::Setting>(setting);
+                    if (setting == nullptr) {
+                        covariance_setting = std::make_shared<typename Derived::Setting>();
+                    }
+                    ERL_ASSERTM(
+                        covariance_setting != nullptr,
+                        "Failed to cast setting for derived Covariance of type {}.",
+                        typeid(Derived).name());
+                    return std::make_shared<Derived>(covariance_setting);
+                });
+        }
 
         [[nodiscard]] std::shared_ptr<Setting>
         GetSetting() const;
@@ -194,9 +209,9 @@ namespace erl::covariance {
         explicit Covariance(std::shared_ptr<Setting> setting);
     };
 
+    extern template class Covariance<double>;
+    extern template class Covariance<float>;
 }  // namespace erl::covariance
-
-#include "covariance.tpp"
 
 template<>
 struct YAML::convert<erl::covariance::Covariance<double>::Setting>

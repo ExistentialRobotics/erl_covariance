@@ -112,6 +112,14 @@ namespace erl::covariance {
     using OrnsteinUhlenbeck3f = OrnsteinUhlenbeck<float, 3>;
     using OrnsteinUhlenbeckXf = OrnsteinUhlenbeck<float, Eigen::Dynamic>;
 
-}  // namespace erl::covariance
+    extern template class OrnsteinUhlenbeck<double, 1>;
+    extern template class OrnsteinUhlenbeck<double, 2>;
+    extern template class OrnsteinUhlenbeck<double, 3>;
+    extern template class OrnsteinUhlenbeck<double, Eigen::Dynamic>;
 
-#include "ornstein_uhlenbeck.tpp"
+    extern template class OrnsteinUhlenbeck<float, 1>;
+    extern template class OrnsteinUhlenbeck<float, 2>;
+    extern template class OrnsteinUhlenbeck<float, 3>;
+    extern template class OrnsteinUhlenbeck<float, Eigen::Dynamic>;
+
+}  // namespace erl::covariance

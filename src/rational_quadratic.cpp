@@ -1,4 +1,4 @@
-#pragma once
+#include "erl_covariance/rational_quadratic.hpp"
 
 namespace erl::covariance {
     template<typename Dtype>
@@ -604,4 +604,14 @@ namespace erl::covariance {
         }
         return {n_rows, n_cols};
     }
+
+    template class RationalQuadratic<double, 1>;
+    template class RationalQuadratic<double, 2>;
+    template class RationalQuadratic<double, 3>;
+    template class RationalQuadratic<double, Eigen::Dynamic>;
+
+    template class RationalQuadratic<float, 1>;
+    template class RationalQuadratic<float, 2>;
+    template class RationalQuadratic<float, 3>;
+    template class RationalQuadratic<float, Eigen::Dynamic>;
 }  // namespace erl::covariance

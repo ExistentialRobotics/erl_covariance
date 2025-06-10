@@ -129,6 +129,14 @@ namespace erl::covariance {
     using RadialBiasFunction3f = RadialBiasFunction<float, 3>;
     using RadialBiasFunctionXf = RadialBiasFunction<float, Eigen::Dynamic>;
 
-}  // namespace erl::covariance
+    extern template class RadialBiasFunction<double, 1>;
+    extern template class RadialBiasFunction<double, 2>;
+    extern template class RadialBiasFunction<double, 3>;
+    extern template class RadialBiasFunction<double, Eigen::Dynamic>;
 
-#include "radial_bias_function.tpp"
+    extern template class RadialBiasFunction<float, 1>;
+    extern template class RadialBiasFunction<float, 2>;
+    extern template class RadialBiasFunction<float, 3>;
+    extern template class RadialBiasFunction<float, Eigen::Dynamic>;
+
+}  // namespace erl::covariance

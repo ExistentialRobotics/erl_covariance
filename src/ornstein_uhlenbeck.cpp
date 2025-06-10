@@ -1,4 +1,4 @@
-#pragma once
+#include "erl_covariance/ornstein_uhlenbeck.hpp"
 
 #include "erl_common/exception.hpp"
 
@@ -253,4 +253,15 @@ namespace erl::covariance {
         MatrixX &) const {
         throw NotImplemented(__PRETTY_FUNCTION__);
     }
+
+    template class OrnsteinUhlenbeck<double, 1>;
+    template class OrnsteinUhlenbeck<double, 2>;
+    template class OrnsteinUhlenbeck<double, 3>;
+    template class OrnsteinUhlenbeck<double, Eigen::Dynamic>;
+
+    template class OrnsteinUhlenbeck<float, 1>;
+    template class OrnsteinUhlenbeck<float, 2>;
+    template class OrnsteinUhlenbeck<float, 3>;
+    template class OrnsteinUhlenbeck<float, Eigen::Dynamic>;
+
 }  // namespace erl::covariance

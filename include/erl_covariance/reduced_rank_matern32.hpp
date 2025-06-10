@@ -31,6 +31,14 @@ namespace erl::covariance {
     using ReducedRankMatern32_3f = ReducedRankMatern32<float, 3>;
     using ReducedRankMatern32_Xf = ReducedRankMatern32<float, Eigen::Dynamic>;
 
-}  // namespace erl::covariance
+    extern template class ReducedRankMatern32<double, 1>;
+    extern template class ReducedRankMatern32<double, 2>;
+    extern template class ReducedRankMatern32<double, 3>;
+    extern template class ReducedRankMatern32<double, Eigen::Dynamic>;
 
-#include "reduced_rank_matern32.tpp"
+    extern template class ReducedRankMatern32<float, 1>;
+    extern template class ReducedRankMatern32<float, 2>;
+    extern template class ReducedRankMatern32<float, 3>;
+    extern template class ReducedRankMatern32<float, Eigen::Dynamic>;
+
+}  // namespace erl::covariance
