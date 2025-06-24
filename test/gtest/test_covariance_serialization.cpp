@@ -1,3 +1,4 @@
+#include "erl_common/serialization.hpp"
 #include "erl_common/test_helper.hpp"
 #include "erl_covariance/matern32.hpp"
 

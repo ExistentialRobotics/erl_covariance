@@ -39,26 +39,29 @@ namespace erl::covariance {
             "mat_k.cols() = {}, it should be >= {}.",
             mat_k.cols(),
             num_samples);
-        long dim;
-        if constexpr (Dim == Eigen::Dynamic) {
-            dim = mat_x.rows();
-        } else {
-            dim = Dim;
-        }
+
         const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
         const long stride = mat_k.outerStride();
         for (long j = 0; j < num_samples; ++j) {
-            Dtype *mat_k_j_ptr = mat_k.col(j).data();   // use raw pointer to improve performance
-            const Dtype *xj_ptr = mat_x.col(j).data();  // use raw pointer to improve performance
-            mat_k_j_ptr[j] = 1.0f;                      // mat_k(j, j)
+            Dtype *mat_k_j_ptr = mat_k.col(j).data();
+            const Dtype *xj_ptr = mat_x.col(j).data();
+            mat_k_j_ptr[j] = 1.0f;  // mat_k(j, j)
             if (j + 1 >= num_samples) { continue; }
             Dtype *k_ji_ptr = &mat_k(j, j + 1);  // mat_k(j, i)
             for (long i = j + 1; i < num_samples; ++i, k_ji_ptr += stride) {
                 const Dtype *xi_ptr = mat_x.col(i).data();
                 Dtype r = 0.0f;
-                for (long k = 0; k < dim; ++k) {
-                    const Dtype dx = xi_ptr[k] - xj_ptr[k];
-                    r += dx * dx;
+                if constexpr (Dim == Eigen::Dynamic) {
+                    const long dim = mat_x.rows();
+                    for (long k = 0; k < dim; ++k) {
+                        const Dtype dx = xi_ptr[k] - xj_ptr[k];
+                        r += dx * dx;
+                    }
+                } else {
+                    for (long k = 0; k < Dim; ++k) {
+                        const Dtype dx = xi_ptr[k] - xj_ptr[k];
+                        r += dx * dx;
+                    }
                 }
                 Dtype &k_ij = mat_k_j_ptr[i];
                 k_ij = std::exp(-a * r);  // mat_k(i, j)
@@ -96,12 +99,7 @@ namespace erl::covariance {
             "mat_k.cols() = {}, it should be >= {}.",
             mat_k.cols(),
             num_samples);
-        long dim;
-        if constexpr (Dim == Eigen::Dynamic) {
-            dim = mat_x.rows();
-        } else {
-            dim = Dim;
-        }
+
         const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
         const long stride = mat_k.outerStride();
         for (long j = 0; j < num_samples; ++j) {
@@ -113,9 +111,17 @@ namespace erl::covariance {
             for (long i = j + 1; i < num_samples; ++i, k_ji_ptr += stride) {
                 const Dtype *xi_ptr = mat_x.col(i).data();
                 Dtype r = 0.0f;
-                for (long k = 0; k < dim; ++k) {
-                    const Dtype dx = xi_ptr[k] - xj_ptr[k];
-                    r += dx * dx;
+                if constexpr (Dim == Eigen::Dynamic) {
+                    const long dim = mat_x.rows();
+                    for (long k = 0; k < dim; ++k) {
+                        const Dtype dx = xi_ptr[k] - xj_ptr[k];
+                        r += dx * dx;
+                    }
+                } else {
+                    for (long k = 0; k < Dim; ++k) {
+                        const Dtype dx = xi_ptr[k] - xj_ptr[k];
+                        r += dx * dx;
+                    }
                 }
                 Dtype &k_ij = mat_k_j_ptr[i];  // mat_k(i, j)
                 k_ij = std::exp(-a * r);
@@ -157,12 +163,7 @@ namespace erl::covariance {
             "mat_k.cols() = {}, it should be >= {}.",
             mat_k.cols(),
             num_samples2);
-        long dim;
-        if constexpr (Dim == Eigen::Dynamic) {
-            dim = mat_x1.rows();
-        } else {
-            dim = Dim;
-        }
+
         const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
         for (long j = 0; j < num_samples2; ++j) {
             const Dtype *x2_ptr = mat_x2.col(j).data();
@@ -170,9 +171,17 @@ namespace erl::covariance {
             for (long i = 0; i < num_samples1; ++i) {
                 const Dtype *x1_ptr = mat_x1.col(i).data();
                 Dtype r = 0.0f;
-                for (long k = 0; k < dim; ++k) {
-                    const Dtype dx = x1_ptr[k] - x2_ptr[k];
-                    r += dx * dx;
+                if constexpr (Dim == Eigen::Dynamic) {
+                    const long dim = mat_x1.rows();
+                    for (long k = 0; k < dim; ++k) {
+                        const Dtype dx = x1_ptr[k] - x2_ptr[k];
+                        r += dx * dx;
+                    }
+                } else {
+                    for (long k = 0; k < Dim; ++k) {
+                        const Dtype dx = x1_ptr[k] - x2_ptr[k];
+                        r += dx * dx;
+                    }
                 }
                 col_j_ptr[i] = std::exp(-a * r);
             }
@@ -190,12 +199,6 @@ namespace erl::covariance {
         Dtype zero_threshold,
         SparseMatrix &mat_k) const {
 
-        long dim;
-        if constexpr (Dim == Eigen::Dynamic) {
-            dim = mat_x1.rows();
-        } else {
-            dim = Dim;
-        }
         const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
         const Dtype threshold = std::log(zero_threshold);
         mat_k = SparseMatrix(num_samples1, num_samples2);  // initialize sparse matrix
@@ -204,9 +207,17 @@ namespace erl::covariance {
             for (long i = 0; i < num_samples1; ++i) {
                 const Dtype *x1_ptr = mat_x1.col(i).data();
                 Dtype r = 0.0f;
-                for (long k = 0; k < dim; ++k) {
-                    const Dtype dx = x1_ptr[k] - x2_ptr[k];
-                    r += dx * dx;
+                if constexpr (Dim == Eigen::Dynamic) {
+                    const long dim = mat_x1.rows();
+                    for (long k = 0; k < dim; ++k) {
+                        const Dtype dx = x1_ptr[k] - x2_ptr[k];
+                        r += dx * dx;
+                    }
+                } else {
+                    for (long k = 0; k < Dim; ++k) {
+                        const Dtype dx = x1_ptr[k] - x2_ptr[k];
+                        r += dx * dx;
+                    }
                 }
                 r *= -a;
                 if (r < threshold) { continue; }
@@ -327,13 +338,12 @@ namespace erl::covariance {
                                 const Dtype &dxl = diff_ij[l];
                                 Dtype &k_kj_li = mat_k_ki_ptrs[l][kj];  // mat_k(kj, li)
                                 // cov(df_j/dx_k, df_i/dx_l)
-                                k_kj_li = l2_inv * k_ij *
-                                          (-l2_inv * dxk *
-                                           dxl);  // mat_k(lj, ki) = cov(df_j/dx_l, df_i/dx_k)
-                                mat_k_ki_ptrs[k][lj] =
-                                    k_kj_li;  // mat_k(li, kj) = cov(df_i/dx_l, df_j/dx_k)
-                                mat_k_kj_ptrs[k][li] =
-                                    k_kj_li;  // mat_k(ki, lj) = cov(df_i/dx_k, df_j/dx_l)
+                                // mat_k(lj, ki) = cov(df_j/dx_l, df_i/dx_k)
+                                k_kj_li = l2_inv * k_ij * (-l2_inv * dxk * dxl);
+                                // mat_k(li, kj) = cov(df_i/dx_l, df_j/dx_k)
+                                mat_k_ki_ptrs[k][lj] = k_kj_li;
+                                // mat_k(ki, lj) = cov(df_i/dx_k, df_j/dx_l)
+                                mat_k_kj_ptrs[k][li] = k_kj_li;
                                 mat_k_kj_ptrs[l][ki] = k_kj_li;
                             }
                         }
