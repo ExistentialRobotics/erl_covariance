@@ -201,7 +201,17 @@ namespace erl::covariance {
 
         const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
         const Dtype threshold = std::log(zero_threshold);
-        mat_k = SparseMatrix(num_samples1, num_samples2);  // initialize sparse matrix
+        mat_k.setZero();  // clear the sparse matrix
+        ERL_DEBUG_ASSERT(
+            mat_k.rows() >= num_samples1,
+            "mat_k.rows() = {}, it should be >= {}.",
+            mat_k.rows(),
+            num_samples1);
+        ERL_DEBUG_ASSERT(
+            mat_k.cols() >= num_samples2,
+            "mat_k.cols() = {}, it should be >= {}.",
+            mat_k.cols(),
+            num_samples2);
         for (long j = 0; j < num_samples2; ++j) {
             const Dtype *x2_ptr = mat_x2.col(j).data();
             for (long i = 0; i < num_samples1; ++i) {
@@ -678,7 +688,17 @@ namespace erl::covariance {
 
         // buffer to store the difference between x1_i and x2_j
         Eigen::Vector<Dtype, Dim> diff_ij;  // avoid memory allocation on the heap
-        mat_k = SparseMatrix(n_rows, n_cols);
+        mat_k.setZero();
+        ERL_DEBUG_ASSERT(
+            mat_k.rows() >= n_rows,
+            "mat_k.rows() = {}, it should be >= {}.",
+            mat_k.rows(),
+            n_rows);
+        ERL_DEBUG_ASSERT(
+            mat_k.cols() >= n_cols,
+            "mat_k.cols() = {}, it should be >= {}.",
+            mat_k.cols(),
+            n_cols);
         for (long j = 0; j < num_samples2; ++j) {
             const Dtype *x2_j_ptr = mat_x2.col(j).data();
             for (long i = 0, ki_init = num_samples1; i < num_samples1; ++i) {
