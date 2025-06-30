@@ -84,6 +84,7 @@ namespace erl::covariance {
         MatrixX mat_k_dense(rows, cols);
         (void) ComputeKtest(mat_x1, num_samples1, mat_x2, num_samples2, mat_k_dense);
         mat_k = mat_k_dense.sparseView(zero_threshold);
+        mat_k.makeCompressed();
         return {rows, cols};
     }
 
@@ -116,6 +117,7 @@ namespace erl::covariance {
             predict_gradient,
             mat_k_dense);
         mat_k = mat_k_dense.sparseView(zero_threshold);
+        mat_k.makeCompressed();
         return {rows, cols};
     }
 
