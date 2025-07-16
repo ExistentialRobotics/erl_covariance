@@ -13,8 +13,7 @@ erl_project_setup(
         ERL_PACKAGES erl_common
 )
 erl_setup_ros(
-        CATKIN_PACKAGE_LIBRARIES
-        ${PROJECT_NAME} py${PROJECT_NAME}
+        LIBRARIES ${PROJECT_NAME}
 )
 
 ####################################################################################################
