@@ -18,9 +18,10 @@ namespace erl::covariance {
         explicit OrnsteinUhlenbeck(std::shared_ptr<Setting> setting);
 
         [[nodiscard]] std::string
-        GetCovarianceType() const override {
-            return type_name<OrnsteinUhlenbeck>();
-        }
+        GetCovarianceType() const override;
+
+        [[nodiscard]] std::string
+        GetCovarianceName() const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(

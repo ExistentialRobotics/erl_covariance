@@ -23,6 +23,12 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    [[nodiscard]] std::string
+    RadialBiasFunction<Dtype, Dim>::GetCovarianceName() const {
+        return "RadialBiasFunction";
+    }
+
+    template<typename Dtype, int Dim>
     std::pair<long, long>
     RadialBiasFunction<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,

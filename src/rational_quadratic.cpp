@@ -29,6 +29,12 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    [[nodiscard]] std::string
+    RationalQuadratic<Dtype, Dim>::GetCovarianceName() const {
+        return "RationalQuadratic";
+    }
+
+    template<typename Dtype, int Dim>
     std::pair<long, long>
     RationalQuadratic<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,

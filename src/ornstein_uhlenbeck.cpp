@@ -21,6 +21,18 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    [[nodiscard]] std::string
+    OrnsteinUhlenbeck<Dtype, Dim>::GetCovarianceType() const {
+        return type_name<OrnsteinUhlenbeck>();
+    }
+
+    template<typename Dtype, int Dim>
+    [[nodiscard]] std::string
+    OrnsteinUhlenbeck<Dtype, Dim>::GetCovarianceName() const {
+        return "OrnsteinUhlenbeck";
+    }
+
+    template<typename Dtype, int Dim>
     std::pair<long, long>
     OrnsteinUhlenbeck<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,

@@ -15,9 +15,10 @@ namespace erl::covariance {
         explicit Matern32(std::shared_ptr<Setting> setting);
 
         [[nodiscard]] std::string
-        GetCovarianceType() const override {
-            return type_name<Matern32>();
-        }
+        GetCovarianceType() const override;
+
+        [[nodiscard]] std::string
+        GetCovarianceName() const override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(

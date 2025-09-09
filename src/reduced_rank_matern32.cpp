@@ -12,6 +12,12 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    [[nodiscard]] std::string
+    ReducedRankMatern32<Dtype, Dim>::GetCovarianceName() const {
+        return "ReducedRankMatern32";
+    }
+
+    template<typename Dtype, int Dim>
     typename ReducedRankMatern32<Dtype, Dim>::VectorX
     ReducedRankMatern32<Dtype, Dim>::ComputeSpectralDensities(
         const VectorX &freq_squared_norm) const {

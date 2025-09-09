@@ -17,6 +17,9 @@ namespace erl::covariance {
         [[nodiscard]] std::string
         GetCovarianceType() const override;
 
+        [[nodiscard]] std::string
+        GetCovarianceName() const override;
+
         [[nodiscard]] VectorX
         ComputeSpectralDensities(const VectorX &freq_squared_norm) const override;
     };

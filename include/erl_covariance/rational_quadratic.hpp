@@ -19,6 +19,9 @@ namespace erl::covariance {
         [[nodiscard]] std::string
         GetCovarianceType() const override;
 
+        [[nodiscard]] std::string
+        GetCovarianceName() const override;
+
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(
             const Eigen::Ref<const MatrixX> &mat_x,

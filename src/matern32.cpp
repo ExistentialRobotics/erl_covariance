@@ -53,6 +53,18 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    [[nodiscard]] std::string
+    Matern32<Dtype, Dim>::GetCovarianceType() const {
+        return type_name<Matern32>();
+    }
+
+    template<typename Dtype, int Dim>
+    [[nodiscard]] std::string
+    Matern32<Dtype, Dim>::GetCovarianceName() const {
+        return "Matern32";
+    }
+
+    template<typename Dtype, int Dim>
     [[nodiscard]] std::pair<long, long>
     Matern32<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,

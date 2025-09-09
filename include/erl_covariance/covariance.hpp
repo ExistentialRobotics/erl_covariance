@@ -66,6 +66,13 @@ namespace erl::covariance {
         GetCovarianceType() const = 0;
 
         /**
+         * returns the human-readable name of the covariance function
+         * @return The name of the covariance function.
+         */
+        [[nodiscard]] virtual std::string
+        GetCovarianceName() const = 0;
+
+        /**
          * Create a new covariance of the given type.
          * @param covariance_type
          * @param setting
