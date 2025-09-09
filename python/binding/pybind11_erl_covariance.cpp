@@ -1,4 +1,5 @@
 #include "erl_common/pybind11.hpp"
+#include "erl_common/pybind11_yaml.hpp"
 #include "erl_common/string_utils.hpp"
 #include "erl_covariance/covariance.hpp"
 
@@ -212,6 +213,7 @@ BindCovarianceImpl(const py::module &m, const char *name) {
 
 PYBIND11_MODULE(PYBIND_MODULE_NAME, m) {
     m.doc() = "Python 3 Interface of erl_covariance";
+    BindYamlableBase(m);
     BindCovarianceImpl<double>(m, "CovarianceD");
     BindCovarianceImpl<float>(m, "CovarianceF");
 }
