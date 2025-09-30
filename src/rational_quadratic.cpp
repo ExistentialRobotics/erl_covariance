@@ -241,6 +241,10 @@ namespace erl::covariance {
             diff_ij.resize(dim);
             k_mat_kj_ptrs.resize(dim);
             k_mat_ki_ptrs.resize(dim);
+        } else {
+            diff_ij.setZero();
+            k_mat_kj_ptrs.setZero();
+            k_mat_ki_ptrs.setZero();
         }
         for (long j = 0; j < num_samples; ++j) {
             Dtype *k_mat_j_ptr = k_mat.col(j).data();
