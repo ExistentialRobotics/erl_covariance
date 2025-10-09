@@ -1,6 +1,7 @@
 #include "erl_covariance/reduced_rank_covariance.hpp"
 
 #include "erl_common/serialization.hpp"
+#include "erl_common/storage_order.hpp"
 
 namespace erl::covariance {
     template<typename Dtype>
