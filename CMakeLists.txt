@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(erl_covariance #
         LANGUAGES CXX #
-        VERSION 0.1.0 #
+        VERSION 0.2.0 #
         DESCRIPTION "erl_covariance is a C++ library of kernel functions")
 message(STATUS "Configuring ${PROJECT_NAME} ${PROJECT_VERSION}")
 
