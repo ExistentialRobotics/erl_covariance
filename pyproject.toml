@@ -5,13 +5,20 @@ requires = ["setuptools", "wheel", "toml"]
 line-length = 120
 
 [erl]
-description = "Python bindings for erl_covariance"
-python_pkg_name = "erl_covariance"
-pybind_module_name = "pyerl_covariance"
 erl_dependencies = ["erl_cmake_tools", "erl_common"]
 build_type = "Release"
+
+[project]
+name = "erl_covariance"
 version = "0.2.0"
-author = "Zhirui Dai"
-author_email = "zhdai@ucsd.edu"
-entry_points = { console_scripts = [] }
+description = "Python package for erl_covariance"
+authors = [
+    { name = "Zhirui Dai", email = "zhdai@ucsd.edu" }
+]
+maintainers = [
+    { name = "Zhirui Dai", email = "zhdai@ucsd.edu" }
+]
+readme = "README.md"
 license = "MIT"
+requires-python = ">=3.8"
+dependencies = []

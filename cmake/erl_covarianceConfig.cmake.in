@@ -4,13 +4,16 @@ if (NOT COMMAND erl_project_setup)
     find_package(erl_cmake_tools REQUIRED)
 endif ()
 
-foreach(package erl_common)
+foreach(package @ERL_PACKAGES@)
     if (NOT TARGET ${package})
         message(STATUS "Looking for ${package}")
         find_package(${package} REQUIRED)
     endif()
 endforeach()
 
+if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@_dependencies.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@_dependencies.cmake")
+endif()
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
 
 # name alias
