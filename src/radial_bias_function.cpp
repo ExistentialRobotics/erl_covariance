@@ -206,7 +206,7 @@ namespace erl::covariance {
         SparseMatrix &mat_k) const {
 
         const Dtype a = 0.5f / (Super::m_setting_->scale * Super::m_setting_->scale);
-        const Dtype threshold = std::log(zero_threshold);
+        const Dtype threshold = std::log(zero_threshold) / (-a);
         mat_k.setZero();  // clear the sparse matrix
         ERL_DEBUG_ASSERT(
             mat_k.rows() >= num_samples1,
@@ -228,16 +228,17 @@ namespace erl::covariance {
                     for (long k = 0; k < dim; ++k) {
                         const Dtype dx = x1_ptr[k] - x2_ptr[k];
                         r += dx * dx;
+                        if (r > threshold) { break; }
                     }
                 } else {
                     for (long k = 0; k < Dim; ++k) {
                         const Dtype dx = x1_ptr[k] - x2_ptr[k];
                         r += dx * dx;
+                        if (r > threshold) { break; }
                     }
                 }
-                r *= -a;
-                if (r < threshold) { continue; }
-                mat_k.insert(i, j) = std::exp(r);
+                if (r > threshold) { continue; }
+                mat_k.insert(i, j) = std::exp(r * (-a));
             }
         }
         return {num_samples1, num_samples2};
@@ -694,7 +695,7 @@ namespace erl::covariance {
 
         const Dtype l2_inv = 1.0f / (Super::m_setting_->scale * Super::m_setting_->scale);
         const Dtype a = 0.5f * l2_inv;
-        const Dtype threshold = std::log(zero_threshold);
+        const Dtype threshold = std::log(zero_threshold) / (-a);
 
         // buffer to store the difference between x1_i and x2_j
         Eigen::Vector<Dtype, Dim> diff_ij;  // avoid memory allocation on the heap
@@ -718,12 +719,12 @@ namespace erl::covariance {
                     Dtype &dx = diff_ij[k];
                     dx = x1_i_ptr[k] - x2_j_ptr[k];
                     r2 += dx * dx;
+                    if (r2 > threshold) { break; }
                 }
-                r2 *= -a;
-                if (r2 < threshold) { continue; }  // skip if r2 is too small
+                if (r2 > threshold) { continue; }  // skip if r2 is too large
 
                 Dtype k_ij;
-                k_ij = std::exp(r2);
+                k_ij = std::exp(r2 * (-a));
                 mat_k.insert(i, j) = k_ij;  // mat_k(i, j) = cov(f1_i, f2_j)
 
                 Dtype l2_inv_k_ij = 0.0f;
