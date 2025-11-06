@@ -107,33 +107,8 @@ namespace erl::covariance {
     }
 
     template<typename Dtype>
-    YAML::Node
-    ReducedRankCovariance<Dtype>::Setting::YamlConvertImpl::encode(const Setting &setting) {
-        YAML::Node node = Super::Setting::YamlConvertImpl::encode(setting);
-        ERL_YAML_SAVE_ATTR(node, setting, max_num_basis);
-        ERL_YAML_SAVE_ATTR(node, setting, num_basis);
-        ERL_YAML_SAVE_ATTR(node, setting, boundaries);
-        ERL_YAML_SAVE_ATTR(node, setting, accumulated);
-        return node;
-    }
-
-    template<typename Dtype>
-    bool
-    ReducedRankCovariance<Dtype>::Setting::YamlConvertImpl::decode(
-        const YAML::Node &node,
-        Setting &setting) {
-        if (!Super::Setting::YamlConvertImpl::decode(node, setting)) { return false; }
-        ERL_YAML_LOAD_ATTR(node, setting, max_num_basis);
-        ERL_YAML_LOAD_ATTR(node, setting, num_basis);
-        ERL_YAML_LOAD_ATTR(node, setting, boundaries);
-        ERL_YAML_LOAD_ATTR(node, setting, accumulated);
-        return true;
-    }
-
-    template<typename Dtype>
     ReducedRankCovariance<Dtype>::ReducedRankCovariance(std::shared_ptr<Setting> setting)
-        : Super(setting),
-          m_setting_(std::move(setting)) {
+        : Super(setting), m_setting_(std::move(setting)) {
         ERL_WARN_COND(
             m_setting_->boundaries.size() != m_setting_->x_dim,
             "Boundaries size ({}) does not match x_dim ({})",
@@ -690,81 +665,70 @@ namespace erl::covariance {
 
     template<typename Dtype>
     bool
-    ReducedRankCovariance<Dtype>::Write(std::ostream &s) const {
-        static const std::vector<std::pair<
-            const char *,
-            std::function<bool(const ReducedRankCovariance *, std::ostream &)>>>
-            token_function_pairs = {
-                {
-                    "setting",
-                    [](const ReducedRankCovariance *self, std::ostream &stream) {
-                        return self->m_setting_->Write(stream) && stream.good();
-                    },
+    ReducedRankCovariance<Dtype>::Write(std::ostream &stream) const {
+        using namespace common::serialization;
+        using namespace common;
+        static const TokenWriteFunctionPairs<ReducedRankCovariance> token_function_pairs = {
+            {
+                "setting",
+                [](const ReducedRankCovariance *self, std::ostream &s) {
+                    return self->m_setting_->Write(s) && s.good();
                 },
-                {
-                    "coord_origin",
-                    [](const ReducedRankCovariance *self, std::ostream &stream) {
-                        return common::SaveEigenMatrixToBinaryStream(
-                                   stream,
-                                   self->m_coord_origin_) &&
-                               stream.good();
-                    },
+            },
+            {
+                "coord_origin",
+                [](const ReducedRankCovariance *self, std::ostream &s) {
+                    return SaveEigenMatrixToBinaryStream(s, self->m_coord_origin_) && s.good();
                 },
-                {
-                    "mat_k",
-                    [](const ReducedRankCovariance *self, std::ostream &stream) {
-                        return common::SaveEigenMatrixToBinaryStream(stream, self->m_mat_k_) &&
-                               stream.good();
-                    },
+            },
+            {
+                "mat_k",
+                [](const ReducedRankCovariance *self, std::ostream &s) {
+                    return SaveEigenMatrixToBinaryStream(s, self->m_mat_k_) && s.good();
                 },
-                {
-                    "alpha",
-                    [](const ReducedRankCovariance *self, std::ostream &stream) {
-                        return common::SaveEigenMatrixToBinaryStream(stream, self->m_alpha_) &&
-                               stream.good();
-                    },
+            },
+            {
+                "alpha",
+                [](const ReducedRankCovariance *self, std::ostream &s) {
+                    return SaveEigenMatrixToBinaryStream(s, self->m_alpha_) && s.good();
                 },
-            };
-        return common::WriteTokens(s, this, token_function_pairs);
+            },
+        };
+        return WriteTokens(stream, this, token_function_pairs);
     }
 
     template<typename Dtype>
     bool
-    ReducedRankCovariance<Dtype>::Read(std::istream &s) {
-        static const std::vector<
-            std::pair<const char *, std::function<bool(ReducedRankCovariance *, std::istream &)>>>
-            token_function_pairs = {
-                {
-                    "setting",
-                    [](ReducedRankCovariance *self, std::istream &stream) {
-                        return self->m_setting_->Read(stream) && stream.good();
-                    },
+    ReducedRankCovariance<Dtype>::Read(std::istream &stream) {
+        using namespace common::serialization;
+        using namespace common;
+        static const TokenReadFunctionPairs<ReducedRankCovariance> token_function_pairs = {
+            {
+                "setting",
+                [](ReducedRankCovariance *self, std::istream &s) {
+                    return self->m_setting_->Read(s) && s.good();
                 },
-                {
-                    "coord_origin",
-                    [](ReducedRankCovariance *self, std::istream &stream) {
-                        return common::LoadEigenMatrixFromBinaryStream(
-                                   stream,
-                                   self->m_coord_origin_) &&
-                               stream.good();
-                    },
+            },
+            {
+                "coord_origin",
+                [](ReducedRankCovariance *self, std::istream &s) {
+                    return LoadEigenMatrixFromBinaryStream(s, self->m_coord_origin_) && s.good();
                 },
-                {
-                    "mat_k",
-                    [](ReducedRankCovariance *self, std::istream &stream) {
-                        return common::LoadEigenMatrixFromBinaryStream(stream, self->m_mat_k_) &&
-                               stream.good();
-                    },
+            },
+            {
+                "mat_k",
+                [](ReducedRankCovariance *self, std::istream &s) {
+                    return LoadEigenMatrixFromBinaryStream(s, self->m_mat_k_) && s.good();
                 },
-                {
-                    "alpha",
-                    [](ReducedRankCovariance *self, std::istream &stream) {
-                        return common::LoadEigenMatrixFromBinaryStream(stream, self->m_alpha_) &&
-                               stream.good();
-                    },
+            },
+            {
+                "alpha",
+                [](ReducedRankCovariance *self, std::istream &s) {
+                    return LoadEigenMatrixFromBinaryStream(s, self->m_alpha_) && s.good();
                 },
-            };
-        return common::ReadTokens(s, this, token_function_pairs);
+            },
+        };
+        return ReadTokens(stream, this, token_function_pairs);
     }
 
     template class ReducedRankCovariance<double>;

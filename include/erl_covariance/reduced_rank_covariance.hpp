@@ -21,10 +21,16 @@ namespace erl::covariance {
         struct Setting : public common::Yamlable<Setting, typename Super::Setting> {
             // maximum number of basis functions per dimension, -1 means no limit
             long max_num_basis = -1;
-            // number of basis functions per dimension
-            Eigen::VectorXl num_basis;
-            VectorX boundaries;       // boundaries for the basis functions per dimension
-            bool accumulated = true;  // whether to accumulate the kernel matrix or not
+            Eigen::VectorXl num_basis;  // number of basis functions per dimension
+            VectorX boundaries;         // boundaries for the basis functions per dimension
+            bool accumulated = true;    // whether to accumulate the kernel matrix or not
+
+            ERL_REFLECT_SCHEMA(
+                Setting,
+                ERL_REFLECT_MEMBER(Setting, max_num_basis),
+                ERL_REFLECT_MEMBER(Setting, num_basis),
+                ERL_REFLECT_MEMBER(Setting, boundaries),
+                ERL_REFLECT_MEMBER(Setting, accumulated));
 
         private:
             // the following members should be computed once and shared among all instances that
@@ -58,14 +64,6 @@ namespace erl::covariance {
 
             [[nodiscard]] const VectorX &
             GetInvSpectralDensities() const;
-
-            struct YamlConvertImpl {
-                static YAML::Node
-                encode(const Setting &setting);
-
-                static bool
-                decode(const YAML::Node &node, Setting &setting);
-            };
         };
 
     protected:
@@ -192,21 +190,13 @@ namespace erl::covariance {
         operator!=(const ReducedRankCovariance &other) const;
 
         [[nodiscard]] bool
-        Write(std::ostream &s) const override;
+        Write(std::ostream &stream) const override;
 
         [[nodiscard]] bool
-        Read(std::istream &s) override;
+        Read(std::istream &stream) override;
     };
 
     extern template class ReducedRankCovariance<double>;
     extern template class ReducedRankCovariance<float>;
 
 }  // namespace erl::covariance
-
-template<>
-struct YAML::convert<erl::covariance::ReducedRankCovariance<double>::Setting>
-    : erl::covariance::ReducedRankCovariance<double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::covariance::ReducedRankCovariance<float>::Setting>
-    : erl::covariance::ReducedRankCovariance<float>::Setting::YamlConvertImpl {};

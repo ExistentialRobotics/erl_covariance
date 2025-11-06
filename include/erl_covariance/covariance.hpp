@@ -22,21 +22,17 @@ namespace erl::covariance {
 
         // structure for holding the parameters
         struct Setting : public common::Yamlable<Setting> {
-            long x_dim = 2;    // dimension of input space
-            Dtype scale = 1.;  // scale length
-
+            long x_dim = 2;      // dimension of input space
+            Dtype scale = 1.0f;  // scale length
             // used by RationalQuadratic, decreasing this value allows more local variations,
             // inf --> Gaussian kernel
-            Dtype scale_mix = 1.;
-            VectorX weights;  // used by some custom kernels
+            Dtype scale_mix = 1.0f;
 
-            struct YamlConvertImpl {
-                static YAML::Node
-                encode(const Setting &setting);
-
-                static bool
-                decode(const YAML::Node &node, Setting &setting);
-            };
+            ERL_REFLECT_SCHEMA(
+                Setting,
+                ERL_REFLECT_MEMBER(Setting, x_dim),
+                ERL_REFLECT_MEMBER(Setting, scale),
+                ERL_REFLECT_MEMBER(Setting, scale_mix));
         };
 
         using Factory = common::FactoryPattern<Covariance, false, false, std::shared_ptr<Setting>>;
@@ -219,11 +215,3 @@ namespace erl::covariance {
     extern template class Covariance<double>;
     extern template class Covariance<float>;
 }  // namespace erl::covariance
-
-template<>
-struct YAML::convert<erl::covariance::Covariance<double>::Setting>
-    : erl::covariance::Covariance<double>::Setting::YamlConvertImpl {};
-
-template<>
-struct YAML::convert<erl::covariance::Covariance<float>::Setting>
-    : erl::covariance::Covariance<float>::Setting::YamlConvertImpl {};

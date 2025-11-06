@@ -1,6 +1,5 @@
 #include "erl_common/pybind11.hpp"
 #include "erl_common/pybind11_yaml.hpp"
-#include "erl_common/string_utils.hpp"
 #include "erl_covariance/covariance.hpp"
 
 using namespace erl::common;
@@ -14,15 +13,7 @@ BindCovarianceImpl(const py::module &m, const char *name) {
     using VectorX = Eigen::VectorX<Dtype>;
 
     auto py_covariance = py::class_<T, std::shared_ptr<T>>(m, name);
-
-    py::class_<typename T::Setting, YamlableBase, std::shared_ptr<typename T::Setting>>(
-        py_covariance,
-        "Setting")
-        .def(py::init())
-        .def_readwrite("x_dim", &T::Setting::x_dim)
-        .def_readwrite("scale", &T::Setting::scale)
-        .def_readwrite("scale_mix", &T::Setting::scale_mix)
-        .def_readwrite("weights", &T::Setting::weights);
+    BindYamlable<decltype(py_covariance), typename T::Setting>(py_covariance, "Setting");
 
     py_covariance.def_property_readonly("type", &T::GetCovarianceType)
         .def_property_readonly("setting", &T::GetSetting)

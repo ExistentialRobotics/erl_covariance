@@ -6,6 +6,7 @@ TEST(ReducedRank, Serialization) {
     GTEST_PREPARE_OUTPUT_DIR();
 
     using namespace erl::common;
+    using namespace erl::common::serialization;
     using namespace erl::covariance;
 
     const auto kernel_setting = std::make_shared<ReducedRankMatern32_3d::Setting>();

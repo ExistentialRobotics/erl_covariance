@@ -286,9 +286,9 @@ namespace erl::covariance {
         Eigen::Vector<Dtype *, Dim> mat_k_kj_ptrs;  // avoid memory allocation on the heap
         Eigen::Vector<Dtype *, Dim> mat_k_ki_ptrs;  // avoid memory allocation on the heap
         if constexpr (Dim == Eigen::Dynamic) {
-            diff_ij.resize(dim);
-            mat_k_kj_ptrs.resize(dim);
-            mat_k_ki_ptrs.resize(dim);
+            diff_ij.setZero(dim);
+            mat_k_kj_ptrs.setZero(dim);
+            mat_k_ki_ptrs.setZero(dim);
         } else {
             diff_ij.setZero();
             mat_k_kj_ptrs.setZero();

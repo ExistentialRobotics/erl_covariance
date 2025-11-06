@@ -4,28 +4,6 @@
 
 namespace erl::covariance {
     template<typename Dtype>
-    YAML::Node
-    Covariance<Dtype>::Setting::YamlConvertImpl::encode(const Setting &setting) {
-        YAML::Node node(YAML::NodeType::Map);
-        ERL_YAML_SAVE_ATTR(node, setting, x_dim);
-        ERL_YAML_SAVE_ATTR(node, setting, scale);
-        ERL_YAML_SAVE_ATTR(node, setting, scale_mix);
-        ERL_YAML_SAVE_ATTR(node, setting, weights);
-        return node;
-    }
-
-    template<typename Dtype>
-    bool
-    Covariance<Dtype>::Setting::YamlConvertImpl::decode(const YAML::Node &node, Setting &setting) {
-        if (!node.IsMap()) { return false; }
-        ERL_YAML_LOAD_ATTR(node, setting, x_dim);
-        ERL_YAML_LOAD_ATTR(node, setting, scale);
-        ERL_YAML_LOAD_ATTR(node, setting, scale_mix);
-        ERL_YAML_LOAD_ATTR(node, setting, weights);
-        return true;
-    }
-
-    template<typename Dtype>
     std::size_t
     Covariance<Dtype>::GetMemoryUsage() const {
         std::size_t memory_usage = sizeof(*this);
@@ -141,33 +119,31 @@ namespace erl::covariance {
     template<typename Dtype>
     bool
     Covariance<Dtype>::Write(std::ostream &s) const {
-        static const std::vector<
-            std::pair<const char *, std::function<bool(const Covariance *, std::ostream &)>>>
-            token_function_pairs = {
-                {
-                    "setting",
-                    [](const Covariance *cov, std::ostream &stream) -> bool {
-                        return cov->m_setting_->Write(stream) && stream.good();
-                    },
+        using namespace common::serialization;
+        static const TokenWriteFunctionPairs<Covariance> token_function_pairs = {
+            {
+                "setting",
+                [](const Covariance *cov, std::ostream &stream) -> bool {
+                    return cov->m_setting_->Write(stream) && stream.good();
                 },
-            };
-        return common::WriteTokens(s, this, token_function_pairs);
+            },
+        };
+        return WriteTokens(s, this, token_function_pairs);
     }
 
     template<typename Dtype>
     bool
     Covariance<Dtype>::Read(std::istream &s) {
-        static const std::vector<
-            std::pair<const char *, std::function<bool(Covariance *, std::istream &)>>>
-            token_function_pairs = {
-                {
-                    "setting",
-                    [](Covariance *cov, std::istream &stream) -> bool {
-                        return cov->m_setting_->Read(stream) && stream.good();
-                    },
+        using namespace common::serialization;
+        static const TokenReadFunctionPairs<Covariance> token_function_pairs = {
+            {
+                "setting",
+                [](Covariance *cov, std::istream &stream) -> bool {
+                    return cov->m_setting_->Read(stream) && stream.good();
                 },
-            };
-        return common::ReadTokens(s, this, token_function_pairs);
+            },
+        };
+        return ReadTokens(s, this, token_function_pairs);
     }
 
     template<typename Dtype>

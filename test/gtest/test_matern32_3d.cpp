@@ -62,7 +62,7 @@ matern32_new(
     const double b = a1 * a1;
 
 #if EIGEN_VERSION_AT_LEAST(3, 4, 0)
-    Eigen::MatrixXd mat_x_with_grad = mat_x(Eigen::all, has_grad_indices).transpose();
+    Eigen::MatrixXd mat_x_with_grad = mat_x(Eigen::indexing::all, has_grad_indices).transpose();
 #else
     Eigen::MatrixXd mat_x_with_grad(has_grad_indices.size(), dim);
     for (long i = 0; i < static_cast<long>(has_grad_indices.size()); ++i) {
@@ -216,7 +216,7 @@ matern32_new2(
         k_mat(j, j) = 1.0;
         if (vec_grad_flags[j]) {
             for (long k = 0, kj = grad_indices[j]; k < dim; ++k, kj += n_grad) {
-                k_mat(kj, kj) = b;  // cov(df_j/dx_k, df_j/dx_k)
+                k_mat(kj, kj) = b;    // cov(df_j/dx_k, df_j/dx_k)
                 k_mat(j, kj) = 0.0f;  // cov(f_j, df_j/dx_k)
                 k_mat(kj, j) = 0.0f;  // cov(df_j/dx_k, f_j)
                 for (long l = k + 1, lj = kj + n_grad; l < dim; ++l, lj += n_grad) {
