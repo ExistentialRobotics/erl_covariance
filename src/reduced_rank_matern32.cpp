@@ -58,6 +58,13 @@ namespace erl::covariance {
         return s;
     }
 
+    template<typename Dtype, int Dim>
+    Dtype
+    ReducedRankMatern32<Dtype, Dim>::GetHessianScaleFactor() const {
+        Dtype s = 1.0f / this->m_setting_->scale;
+        return 3.0f * s * s;
+    }
+
     template class ReducedRankMatern32<double, 1>;
     template class ReducedRankMatern32<double, 2>;
     template class ReducedRankMatern32<double, 3>;

@@ -35,6 +35,13 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    Dtype
+    RationalQuadratic<Dtype, Dim>::GetHessianScaleFactor() const {
+        Dtype s = 1.0f / this->m_setting_->scale;
+        return s * s;
+    }
+
+    template<typename Dtype, int Dim>
     std::pair<long, long>
     RationalQuadratic<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,

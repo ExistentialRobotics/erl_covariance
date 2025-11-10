@@ -22,6 +22,9 @@ namespace erl::covariance {
 
         [[nodiscard]] VectorX
         ComputeSpectralDensities(const VectorX &freq_squared_norm) const override;
+
+        [[nodiscard]] Dtype
+        GetHessianScaleFactor() const override;
     };
 
     using ReducedRankMatern32_1d = ReducedRankMatern32<double, 1>;

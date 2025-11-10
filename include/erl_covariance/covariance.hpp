@@ -113,6 +113,15 @@ namespace erl::covariance {
             long num_test_queries,
             bool predict_gradient) const;
 
+        /**
+         * The scale factor s when computing the Hessian matrix with x=x'. When x=x', the Hessian
+         * matrix is s * I, where I is the identity matrix. This function is useful when computing
+         * the variance of gradient predictions.
+         * @return the scale factor s.
+         */
+        [[nodiscard]] virtual Dtype
+        GetHessianScaleFactor() const = 0;
+
         [[nodiscard]] virtual std::pair<long, long>
         ComputeKtrain(
             const Eigen::Ref<const MatrixX> &mat_x,

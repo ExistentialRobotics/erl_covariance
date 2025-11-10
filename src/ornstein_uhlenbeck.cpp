@@ -33,6 +33,12 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    Dtype
+    OrnsteinUhlenbeck<Dtype, Dim>::GetHessianScaleFactor() const {
+        ERL_FATAL("Ornstein-Uhlenbeck covariance function does not support Hessian computation.");
+    }
+
+    template<typename Dtype, int Dim>
     std::pair<long, long>
     OrnsteinUhlenbeck<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,

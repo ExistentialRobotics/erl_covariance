@@ -65,6 +65,13 @@ namespace erl::covariance {
     }
 
     template<typename Dtype, int Dim>
+    Dtype
+    Matern32<Dtype, Dim>::GetHessianScaleFactor() const {
+        Dtype s = 1.0f / this->m_setting_->scale;
+        return 3.0f * s * s;
+    }
+
+    template<typename Dtype, int Dim>
     [[nodiscard]] std::pair<long, long>
     Matern32<Dtype, Dim>::ComputeKtrain(
         const Eigen::Ref<const MatrixX> &mat_x,

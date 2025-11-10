@@ -23,6 +23,9 @@ namespace erl::covariance {
         [[nodiscard]] std::string
         GetCovarianceName() const override;
 
+        [[nodiscard]] Dtype
+        GetHessianScaleFactor() const override;
+
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(
             const Eigen::Ref<const MatrixX> &mat_x,
