@@ -36,6 +36,7 @@ namespace erl::covariance {
     Dtype
     OrnsteinUhlenbeck<Dtype, Dim>::GetHessianScaleFactor() const {
         ERL_FATAL("Ornstein-Uhlenbeck covariance function does not support Hessian computation.");
+        return 1.0f;
     }
 
     template<typename Dtype, int Dim>
