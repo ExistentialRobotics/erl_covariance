@@ -177,10 +177,9 @@ namespace erl::covariance {
                          MatrixX(mat_alpha.topRows(num_samples));  // (E, N) * (N, D) = (E, D)
 
         if (m_setting_->accumulated) {
-            auto acc_mat_k = const_cast<MatrixX &>(m_mat_k_);
-            if (acc_mat_k.size() == 0) { acc_mat_k = MatrixX::Constant(e, e, 0.0f); }
-            acc_mat_k += mat_k_block;
-            mat_k_block << acc_mat_k;
+            if (m_mat_k_.size() == 0) { m_mat_k_ = MatrixX::Constant(e, e, 0.0f); }
+            m_mat_k_ += mat_k_block;
+            mat_k_block << m_mat_k_;
 
             m_alpha_ += phi_alpha;
             phi_alpha << m_alpha_;

@@ -82,6 +82,8 @@ namespace erl::covariance {
         ReducedRankCovariance &
         operator=(ReducedRankCovariance &&other) = default;
 
+        ~ReducedRankCovariance() override = default;
+
         [[nodiscard]] std::pair<long, long>
         GetMinimumKtrainSize(
             long /*num_samples*/,
