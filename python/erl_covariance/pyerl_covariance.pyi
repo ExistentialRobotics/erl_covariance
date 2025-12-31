@@ -69,9 +69,9 @@ class Covariance:
     def compute_ktest(
         self: Covariance,
         mat_x1: npt.NDArray[np.float64],
-        num_samples1: int,
+        num_samples: int,
         mat_x2: npt.NDArray[np.float64],
-        num_samples2: int,
+        num_queries: int,
     ) -> npt.NDArray[np.float64]: ...
     @overload
     def compute_ktrain_with_gradient(
@@ -95,10 +95,10 @@ class Covariance:
     def compute_ktest_with_gradient(
         self: Covariance,
         mat_x1: npt.NDArray[np.float64],
-        num_samples1: int,
+        num_samples: int,
         vec_grad1_flags: npt.NDArray[np.bool_],
         mat_x2: npt.NDArray[np.float64],
-        num_samples2: int,
+        num_queries: int,
         predict_gradient: bool,
     ) -> npt.NDArray[np.float64]: ...
 

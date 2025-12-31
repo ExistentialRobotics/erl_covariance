@@ -76,11 +76,11 @@ namespace erl::covariance {
         explicit ReducedRankCovariance(std::shared_ptr<Setting> setting);
 
         ReducedRankCovariance(const ReducedRankCovariance &other) = default;
-        ReducedRankCovariance(ReducedRankCovariance &&other) = default;
+        ReducedRankCovariance(ReducedRankCovariance &&other) noexcept = default;
         ReducedRankCovariance &
         operator=(const ReducedRankCovariance &other) = default;
         ReducedRankCovariance &
-        operator=(ReducedRankCovariance &&other) = default;
+        operator=(ReducedRankCovariance &&other) noexcept = default;
 
         ~ReducedRankCovariance() override = default;
 
@@ -135,18 +135,18 @@ namespace erl::covariance {
         std::pair<long, long>
         ComputeKtest(
             const Eigen::Ref<const MatrixX> &mat_x1,
-            long num_samples1,
+            long num_samples,
             const Eigen::Ref<const MatrixX> &mat_x2,
-            long num_samples2,
+            long num_queries,
             MatrixX &mat_k) const override;
 
         std::pair<long, long>
         ComputeKtestWithGradient(
             const Eigen::Ref<const MatrixX> &mat_x1,
-            long num_samples1,
+            long num_samples,
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
             const Eigen::Ref<const MatrixX> &mat_x2,
-            long num_samples2,
+            long num_queries,
             bool predict_gradient,
             MatrixX &mat_k) const override;
 

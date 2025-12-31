@@ -47,7 +47,7 @@ matern32_new(
     has_grad_indices.reserve(vec_grad_flags.size());
     long n_grad = 0;
     for (long i = 0; i < n; ++i) {
-        if (vec_grad_flags[i]) {
+        if (vec_grad_flags[i] > 0) {
             grad_indices.push_back(n + n_grad++);
             has_grad_indices.push_back(i);
         } else {
@@ -85,12 +85,12 @@ matern32_new(
 
         if (const long m = n - j - 1; m > 0) {
             auto diffs_right = diffs.rightCols(m);
-            auto mat_x_right_ptr = mat_x.rightCols(m).data();
-            auto diffs_right_ptr = diffs_right.data();
-            auto x_col_j = mat_x.col(j).data();
-            auto diff_norms_right = diff_norms.tail(m).data();
-            auto exp_terms_right = exp_terms.tail(m).data();
-            auto k_mat_col_j_right = k_mat_col_j.segment(j + 1, m).data();
+            const auto *mat_x_right_ptr = mat_x.rightCols(m).data();
+            auto *diffs_right_ptr = diffs_right.data();
+            const auto *x_col_j = mat_x.col(j).data();
+            auto *diff_norms_right = diff_norms.tail(m).data();
+            auto *exp_terms_right = exp_terms.tail(m).data();
+            auto *k_mat_col_j_right = k_mat_col_j.segment(j + 1, m).data();
 
 #pragma omp simd
             for (long i = 0; i < m; ++i) {
@@ -116,7 +116,7 @@ matern32_new(
 
         // lower triangular part of cov(df_i/dx_k, f_j)
         for (long i = 0; i <= j; ++i) {
-            if (!vec_grad_flags[i]) { continue; }
+            if (vec_grad_flags[i] <= 0) { continue; }
             auto diff_ij = diffs.col(i);
             diff_ij << mat_x.col(i) - mat_x.col(j);
             double &norm = diff_norms[i];
@@ -136,9 +136,9 @@ matern32_new(
         for (long k = 0, ki = n; k < dim; ++k, ki += n_grad) {
             double *k_mat_col_j_ptr = k_mat_col_j.segment(ki, n_grad).data();
             const double xj_k = mat_x(k, j);
-            double *mat_x_with_grad_k_ptr = mat_x_with_grad.col(k).data();
+            const double *mat_x_with_grad_k_ptr = mat_x_with_grad.col(k).data();
             double *diffs_k_ptr = diffs_grad.col(k).data();
-            double *b_exp_terms_ptr = b_exp_terms.data();
+            const double *b_exp_terms_ptr = b_exp_terms.data();
 #pragma omp simd
             for (long i = 0; i < n_grad; ++i) {
                 diffs_k_ptr[i] = mat_x_with_grad_k_ptr[i] - xj_k;
@@ -147,7 +147,7 @@ matern32_new(
         }
 
         // lower triangular part of cov(df_i/dx_k, df_j/dx_l)
-        if (!vec_grad_flags[j]) { continue; }
+        if (vec_grad_flags[j] <= 0) { continue; }
         for (long l = 0, lj = grad_indices[j], rows_grad = n + n_grad; l < dim;
              ++l, lj += n_grad, rows_grad += n_grad) {
             auto k_mat_col_lj = k_mat.col(lj);
@@ -162,10 +162,10 @@ matern32_new(
 
             for (long k = l + 1, start = rows_grad; k < dim; ++k, start += n_grad) {
                 double *cov_ki_lj_ptr = k_mat_col_lj.segment(start, n_grad).data();
-                double *diffs_grad_k_ptr = diffs_grad.col(k).data();
-                double *diffs_grad_l_ptr = diffs_grad.col(l).data();
-                double *diff_norms_grad_ptr = diff_norms_grad.data();
-                double *b_exp_terms_ptr = b_exp_terms.data();
+                const double *diffs_grad_k_ptr = diffs_grad.col(k).data();
+                const double *diffs_grad_l_ptr = diffs_grad.col(l).data();
+                const double *diff_norms_grad_ptr = diff_norms_grad.data();
+                const double *b_exp_terms_ptr = b_exp_terms.data();
                 for (long i = 0; i < n_grad; ++i) {
                     if (has_grad_indices[i] == j) {
                         cov_ki_lj_ptr[i] = 0;
@@ -313,14 +313,14 @@ matern32_new2(
 }
 
 TEST(Matern32, 3D) {
+    using namespace erl::common;
     GTEST_PREPARE_OUTPUT_DIR();
 
     const auto kernel_setting = std::make_shared<erl::covariance::Matern32_3d::Setting>();
     kernel_setting->x_dim = 3;
     auto matern32_old = std::make_shared<erl::covariance::Matern32_3d>(kernel_setting);
 
-    Eigen::MatrixXd mat_x =
-        erl::common::LoadEigenMatrixFromTextFile<double>(gtest_src_dir / "x_train.txt");
+    Eigen::MatrixXd mat_x = LoadEigenMatrixFromTextFile<double>(gtest_src_dir / "x_train.txt");
     Eigen::VectorXl vec_grad_flags = Eigen::VectorXb::Random(mat_x.cols()).cast<long>();
     const long num_samples_with_gradient = vec_grad_flags.cast<long>().sum();
 
@@ -330,7 +330,7 @@ TEST(Matern32, 3D) {
 
     constexpr long n_tests = 1000;
     {
-        erl::common::BlockTimer<std::chrono::milliseconds> timer("Matern32Old");
+        const BlockTimer<std::chrono::milliseconds> timer("Matern32Old");
         (void) timer;
         for (long i = 0; i < n_tests; ++i) {
             Eigen::MatrixXd alpha;
@@ -341,7 +341,7 @@ TEST(Matern32, 3D) {
 
     Eigen::MatrixXd k_mat2;
     {
-        erl::common::BlockTimer<std::chrono::milliseconds> timer("Matern32New");
+        const BlockTimer<std::chrono::milliseconds> timer("Matern32New");
         (void) timer;
         for (long i = 0; i < n_tests; ++i) {
             k_mat2 = matern32_new(kernel_setting, mat_x, vec_grad_flags);
@@ -350,7 +350,7 @@ TEST(Matern32, 3D) {
 
     Eigen::MatrixXd k_mat3;
     {
-        erl::common::BlockTimer<std::chrono::milliseconds> timer("Matern32New2");
+        const BlockTimer<std::chrono::milliseconds> timer("Matern32New2");
         (void) timer;
         for (long i = 0; i < n_tests; ++i) {
             k_mat3 = matern32_new2(kernel_setting, mat_x, vec_grad_flags);
@@ -375,4 +375,130 @@ TEST(Matern32, 3D) {
                 << "i = " << i << ", j = " << j << ", mat_x.cols() = " << mat_x.cols() << std::endl;
         }
     }
+}
+
+TEST(Matern32, ExpBias) {
+    using namespace erl::common;
+    using namespace erl::covariance;
+
+    GTEST_PREPARE_OUTPUT_DIR();
+
+    const auto kernel_setting = std::make_shared<Matern32_3d::Setting>();
+    kernel_setting->x_dim = 3;
+    auto matern32 = std::make_shared<Matern32_3d>(kernel_setting);
+
+    const Eigen::Matrix3Xd mat_x =
+        LoadEigenMatrixFromTextFile<double>(gtest_src_dir / "x_train.txt");
+    const long n_train = mat_x.cols();
+    Eigen::VectorXl vec_grad_flags = Eigen::VectorXb::Random(n_train).cast<long>();
+    const long num_samples_with_gradient = vec_grad_flags.cast<long>().sum();
+
+    constexpr double exp_bias = 1.0;
+    long rows = 0;
+    long cols = 0;
+    std::tie(rows, cols) = matern32->GetMinimumKtrainSize(n_train, num_samples_with_gradient, 3);
+    Eigen::MatrixXd k_mat1(rows, cols);
+    Eigen::MatrixXd alpha;
+    (void) matern32->ComputeKtrainWithGradient(mat_x, n_train, vec_grad_flags, k_mat1);
+    Eigen::MatrixXd k_mat2(rows, cols);
+    (void) matern32
+        ->ComputeKtrainWithGradient(mat_x, n_train, exp_bias, vec_grad_flags, k_mat2, alpha);
+    const Eigen::MatrixXd diff1 = (k_mat1.array() * std::exp(exp_bias) - k_mat2.array()).abs();
+    ERL_INFO("diff1 min: {}, max: {}", diff1.minCoeff(), diff1.maxCoeff());
+    EXPECT_LT(diff1.maxCoeff(), 1.e-6);
+
+    std::tie(rows, cols) = matern32->GetMinimumKtrainSize(n_train, 0, 3);
+    k_mat1.resize(rows, cols);
+    (void) matern32->ComputeKtrain(mat_x, n_train, k_mat1, alpha);
+    k_mat2.resize(rows, cols);
+    (void) matern32->ComputeKtrain(mat_x, n_train, exp_bias, k_mat2, alpha);
+    const Eigen::MatrixXd diff2 = (k_mat1.array() * std::exp(exp_bias) - k_mat2.array()).abs();
+    ERL_INFO("diff2 min: {}, max: {}", diff2.minCoeff(), diff2.maxCoeff());
+    EXPECT_LT(diff2.maxCoeff(), 1.e-6);
+
+    constexpr long n_test = 4;
+    // const Eigen::Matrix3Xd mat_x_test = mat_x.leftCols(n_test);
+    const Eigen::Matrix3Xd mat_x_test = Eigen::Matrix3Xd::Random(3, n_test);
+    std::tie(rows, cols) = matern32->GetMinimumKtestSize(n_train, 0, 3, n_test, false);
+    k_mat1.resize(rows, cols);
+    (void) matern32->ComputeKtest(mat_x, n_train, mat_x_test, n_test, k_mat1);
+    k_mat2.resize(rows, cols);
+    (void) matern32->ComputeKtest(mat_x, n_train, mat_x_test, n_test, exp_bias, k_mat2);
+    const Eigen::MatrixXd diff3 = (k_mat1.array() * std::exp(exp_bias) - k_mat2.array()).abs();
+    ERL_INFO("diff3 min: {}, max: {}", diff3.minCoeff(), diff3.maxCoeff());
+    EXPECT_LT(diff3.maxCoeff(), 1.e-6);
+
+    std::tie(rows, cols) = matern32->GetMinimumKtestSize(n_train, 0, 3, n_test, true);
+    k_mat1.resize(rows, cols);
+    (void) matern32->ComputeKtestWithGradient(
+        mat_x,
+        n_train,
+        Eigen::VectorXl::Zero(n_train),
+        mat_x_test,
+        n_test,
+        true,
+        k_mat1);
+    k_mat2.resize(rows, cols);
+    (void) matern32->ComputeKtestWithGradient(
+        mat_x,
+        n_train,
+        Eigen::VectorXl::Zero(n_train),
+        mat_x_test,
+        n_test,
+        true,
+        exp_bias,
+        k_mat2);
+    const Eigen::MatrixXd diff4 = (k_mat1.array() * std::exp(exp_bias) - k_mat2.array()).abs();
+    ERL_INFO("diff4 min: {}, max: {}", diff4.minCoeff(), diff4.maxCoeff());
+    EXPECT_LT(diff4.maxCoeff(), 1.e-6);
+
+    std::tie(rows, cols) =
+        matern32->GetMinimumKtestSize(n_train, num_samples_with_gradient, 3, n_test, false);
+    k_mat1.resize(rows, cols);
+    (void) matern32->ComputeKtestWithGradient(
+        mat_x,
+        n_train,
+        vec_grad_flags,
+        mat_x_test,
+        n_test,
+        false,
+        k_mat1);
+    k_mat2.resize(rows, cols);
+    (void) matern32->ComputeKtestWithGradient(
+        mat_x,
+        n_train,
+        vec_grad_flags,
+        mat_x_test,
+        n_test,
+        false,
+        exp_bias,
+        k_mat2);
+    const Eigen::MatrixXd diff5 = (k_mat1.array() * std::exp(exp_bias) - k_mat2.array()).abs();
+    ERL_INFO("diff5 min: {}, max: {}", diff5.minCoeff(), diff5.maxCoeff());
+    EXPECT_LT(diff5.maxCoeff(), 1.e-6);
+
+    std::tie(rows, cols) =
+        matern32->GetMinimumKtestSize(n_train, num_samples_with_gradient, 3, n_test, true);
+    k_mat1.resize(rows, cols);
+    (void) matern32->ComputeKtestWithGradient(
+        mat_x,
+        n_train,
+        vec_grad_flags,
+        mat_x_test,
+        n_test,
+        true,
+        k_mat1);
+    k_mat2.resize(rows, cols);
+    (void) matern32->ComputeKtestWithGradient(
+        mat_x,
+        n_train,
+        vec_grad_flags,
+        mat_x_test,
+        n_test,
+        true,
+        exp_bias,
+        k_mat2);
+    const Eigen::MatrixXd diff6 = (k_mat1.array() * std::exp(exp_bias) - k_mat2.array()).abs();
+    ERL_INFO("diff6 min: {}, max: {}", diff6.minCoeff(), diff6.maxCoeff());
+    EXPECT_LT(diff6.maxCoeff(), 1.e-6);
 }

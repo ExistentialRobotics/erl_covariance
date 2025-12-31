@@ -1,5 +1,6 @@
 #include "erl_covariance/covariance.hpp"
 
+#include "erl_common/exception.hpp"
 #include "erl_common/serialization.hpp"
 
 namespace erl::covariance {
@@ -31,7 +32,7 @@ namespace erl::covariance {
         const long num_samples,
         const long num_samples_with_gradient,
         const long num_gradient_dimensions) const {
-        long n = num_samples + num_samples_with_gradient * num_gradient_dimensions;
+        const long n = num_samples + num_samples_with_gradient * num_gradient_dimensions;
         return {n, n};
     }
 
@@ -50,17 +51,72 @@ namespace erl::covariance {
 
     template<typename Dtype>
     std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrain(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const long num_samples,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrain(mat_x, num_samples, mat_k, mat_alpha);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrain(
+        const Eigen::Ref<const MatrixX> & /*mat_x*/,
+        long /*num_samples*/,
+        Dtype /*exp_bias*/,
+        MatrixX & /*mat_k*/,
+        MatrixX & /*mat_alpha*/) {
+        throw NotImplemented(__PRETTY_FUNCTION__);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrain(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const long num_samples,
+        const Dtype exp_bias,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrain(mat_x, num_samples, exp_bias, mat_k, mat_alpha);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrain(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        const Eigen::Ref<const VectorX> &vec_var_y,
+        const long num_samples,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrain(mat_x, vec_var_y, num_samples, mat_k, mat_alpha);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrain(
+        const Eigen::Ref<const MatrixX> & /*mat_x*/,
+        const Eigen::Ref<const VectorX> & /*vec_var_y*/,
+        long /*num_samples*/,
+        Dtype /*exp_bias*/,
+        MatrixX & /*mat_k*/,
+        MatrixX & /*mat_alpha*/) {
+        throw NotImplemented(__PRETTY_FUNCTION__);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
     Covariance<Dtype>::ComputeKtestSparse(
         const Eigen::Ref<const MatrixX> &mat_x1,
-        const long num_samples1,
+        const long num_samples,
         const Eigen::Ref<const MatrixX> &mat_x2,
-        const long num_samples2,
+        const long num_queries,
         const Dtype zero_threshold,
         SparseMatrix &mat_k) const {
         // default implementation, not efficient
-        const auto [rows, cols] = GetMinimumKtestSize(num_samples1, 0, 0, num_samples2, false);
+        const auto [rows, cols] = GetMinimumKtestSize(num_samples, 0, 0, num_queries, false);
         MatrixX mat_k_dense(rows, cols);
-        (void) ComputeKtest(mat_x1, num_samples1, mat_x2, num_samples2, mat_k_dense);
+        (void) ComputeKtest(mat_x1, num_samples, mat_x2, num_queries, mat_k_dense);
         mat_k = mat_k_dense.sparseView(zero_threshold);
         mat_k.makeCompressed();
         return {rows, cols};
@@ -68,31 +124,213 @@ namespace erl::covariance {
 
     template<typename Dtype>
     std::pair<long, long>
+    Covariance<Dtype>::ComputeKtest(
+        const Eigen::Ref<const MatrixX> & /*mat_x1*/,
+        long /*num_samples*/,
+        const Eigen::Ref<const MatrixX> & /*mat_x2*/,
+        long /*num_queries*/,
+        Dtype /*exp_bias*/,
+        MatrixX & /*mat_k*/) const {
+        throw NotImplemented(__PRETTY_FUNCTION__);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtestSparse(
+        const Eigen::Ref<const MatrixX> &mat_x1,
+        const long num_samples,
+        const Eigen::Ref<const MatrixX> &mat_x2,
+        const long num_queries,
+        const Dtype exp_bias,
+        const Dtype zero_threshold,
+        SparseMatrix &mat_k) const {
+        // default implementation, not efficient
+        const auto [rows, cols] = GetMinimumKtestSize(num_samples, 0, 0, num_queries, false);
+        MatrixX mat_k_dense(rows, cols);
+        (void) ComputeKtest(mat_x1, num_samples, mat_x2, num_queries, exp_bias, mat_k_dense);
+        mat_k = mat_k_dense.sparseView(zero_threshold);
+        mat_k.makeCompressed();
+        return {rows, cols};
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrainWithGradient(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        long num_samples,
+        Eigen::VectorXl &vec_grad_flags,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrainWithGradient(mat_x, num_samples, vec_grad_flags, mat_k, mat_alpha);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrainWithGradient(
+        const Eigen::Ref<const MatrixX> & /*mat_x*/,
+        long /*num_samples*/,
+        Dtype /*exp_bias*/,
+        Eigen::VectorXl & /*vec_grad_flags*/,
+        MatrixX & /*mat_k*/,
+        MatrixX & /*mat_alpha*/) {
+        throw NotImplemented(__PRETTY_FUNCTION__);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrainWithGradient(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        long num_samples,
+        Dtype exp_bias,
+        Eigen::VectorXl &vec_grad_flags,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrainWithGradient(
+            mat_x,
+            num_samples,
+            exp_bias,
+            vec_grad_flags,
+            mat_k,
+            mat_alpha);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrainWithGradient(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        long num_samples,
+        Eigen::VectorXl &vec_grad_flags,
+        const Eigen::Ref<const VectorX> &vec_var_x,
+        const Eigen::Ref<const VectorX> &vec_var_y,
+        const Eigen::Ref<const VectorX> &vec_var_grad,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrainWithGradient(
+            mat_x,
+            num_samples,
+            vec_grad_flags,
+            vec_var_x,
+            vec_var_y,
+            vec_var_grad,
+            mat_k,
+            mat_alpha);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrainWithGradient(
+        const Eigen::Ref<const MatrixX> & /*mat_x*/,
+        long /*num_samples*/,
+        Dtype /*exp_bias*/,
+        Eigen::VectorXl & /*vec_grad_flags*/,
+        const Eigen::Ref<const VectorX> & /*vec_var_x*/,
+        const Eigen::Ref<const VectorX> & /*vec_var_y*/,
+        const Eigen::Ref<const VectorX> & /*vec_var_grad*/,
+        MatrixX & /*mat_k*/,
+        MatrixX & /*mat_alpha*/) {
+        throw NotImplemented(__PRETTY_FUNCTION__);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtrainWithGradient(
+        const Eigen::Ref<const MatrixX> &mat_x,
+        long num_samples,
+        Dtype exp_bias,
+        Eigen::VectorXl &vec_grad_flags,
+        const Eigen::Ref<const VectorX> &vec_var_x,
+        const Eigen::Ref<const VectorX> &vec_var_y,
+        const Eigen::Ref<const VectorX> &vec_var_grad,
+        MatrixX &mat_k) {
+        MatrixX mat_alpha;
+        return ComputeKtrainWithGradient(
+            mat_x,
+            num_samples,
+            exp_bias,
+            vec_grad_flags,
+            vec_var_x,
+            vec_var_y,
+            vec_var_grad,
+            mat_k,
+            mat_alpha);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
     Covariance<Dtype>::ComputeKtestWithGradientSparse(
         const Eigen::Ref<const MatrixX> &mat_x1,
-        const long num_samples1,
+        const long num_samples,
         const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
         const Eigen::Ref<const MatrixX> &mat_x2,
-        const long num_samples2,
+        const long num_queries,
         const bool predict_gradient,
         const Dtype zero_threshold,
         SparseMatrix &mat_k) const {
 
-        const long num_train_samples_with_gradient = vec_grad1_flags.head(num_samples1).count();
+        const long num_train_samples_with_gradient = vec_grad1_flags.head(num_samples).count();
         const auto [rows, cols] = GetMinimumKtestSize(
-            num_samples1,
+            num_samples,
             num_train_samples_with_gradient,
             mat_x1.rows(),
-            num_samples2,
+            num_queries,
             predict_gradient);
         MatrixX mat_k_dense(rows, cols);
         (void) ComputeKtestWithGradient(
             mat_x1,
-            num_samples1,
+            num_samples,
             vec_grad1_flags,
             mat_x2,
-            num_samples2,
+            num_queries,
             predict_gradient,
+            mat_k_dense);
+        mat_k = mat_k_dense.sparseView(zero_threshold);
+        mat_k.makeCompressed();
+        return {rows, cols};
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtestWithGradient(
+        const Eigen::Ref<const MatrixX> & /*mat_x1*/,
+        long /*num_samples*/,
+        const Eigen::Ref<const Eigen::VectorXl> & /*vec_grad1_flags*/,
+        const Eigen::Ref<const MatrixX> & /*mat_x2*/,
+        long /*num_queries*/,
+        bool /*predict_gradient*/,
+        Dtype /*exp_bias*/,
+        MatrixX & /*mat_k*/) const {
+        throw NotImplemented(__PRETTY_FUNCTION__);
+    }
+
+    template<typename Dtype>
+    std::pair<long, long>
+    Covariance<Dtype>::ComputeKtestWithGradientSparse(
+        const Eigen::Ref<const MatrixX> &mat_x1,
+        const long num_samples,
+        const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
+        const Eigen::Ref<const MatrixX> &mat_x2,
+        const long num_queries,
+        const bool predict_gradient,
+        const Dtype exp_bias,
+        const Dtype zero_threshold,
+        SparseMatrix &mat_k) const {
+
+        const long num_train_samples_with_gradient = vec_grad1_flags.head(num_samples).count();
+        const auto [rows, cols] = GetMinimumKtestSize(
+            num_samples,
+            num_train_samples_with_gradient,
+            mat_x1.rows(),
+            num_queries,
+            predict_gradient);
+        MatrixX mat_k_dense(rows, cols);
+        (void) ComputeKtestWithGradient(
+            mat_x1,
+            num_samples,
+            vec_grad1_flags,
+            mat_x2,
+            num_queries,
+            predict_gradient,
+            exp_bias,
             mat_k_dense);
         mat_k = mat_k_dense.sparseView(zero_threshold);
         mat_k.makeCompressed();

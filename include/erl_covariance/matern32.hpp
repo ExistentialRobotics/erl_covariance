@@ -12,6 +12,9 @@ namespace erl::covariance {
         using MatrixX = Eigen::MatrixX<Dtype>;
         using VectorX = Eigen::VectorX<Dtype>;
 
+        using Super::ComputeKtrain;
+        using Super::ComputeKtrainWithGradient;
+
         explicit Matern32(std::shared_ptr<Setting> setting);
 
         [[nodiscard]] std::string
@@ -28,10 +31,15 @@ namespace erl::covariance {
             const Eigen::Ref<const MatrixX> &mat_x,
             long num_samples,
             MatrixX &mat_k,
-            MatrixX & /*mat_alpha*/) override;
+            MatrixX &mat_alpha) override;
 
         [[nodiscard]] std::pair<long, long>
-        ComputeKtrain(const Eigen::Ref<const MatrixX> &mat_x, long num_samples, MatrixX &mat_k);
+        ComputeKtrain(
+            const Eigen::Ref<const MatrixX> &mat_x,
+            long num_samples,
+            Dtype exp_bias,
+            MatrixX &mat_k,
+            MatrixX &mat_alpha) override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(
@@ -39,21 +47,32 @@ namespace erl::covariance {
             const Eigen::Ref<const VectorX> &vec_var_y,
             long num_samples,
             MatrixX &mat_k,
-            MatrixX & /*mat_alpha*/) override;
+            MatrixX &mat_alpha) override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrain(
             const Eigen::Ref<const MatrixX> &mat_x,
             const Eigen::Ref<const VectorX> &vec_var_y,
             long num_samples,
-            MatrixX &mat_k);
+            Dtype exp_bias,
+            MatrixX &mat_k,
+            MatrixX &mat_alpha) override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtest(
             const Eigen::Ref<const MatrixX> &mat_x1,
-            long num_samples1,
+            long num_samples,
             const Eigen::Ref<const MatrixX> &mat_x2,
-            long num_samples2,
+            long num_queries,
+            MatrixX &mat_k) const override;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtest(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_queries,
+            Dtype exp_bias,
             MatrixX &mat_k) const override;
 
         [[nodiscard]] std::pair<long, long>
@@ -62,14 +81,16 @@ namespace erl::covariance {
             long num_samples,
             Eigen::VectorXl &vec_grad_flags,
             MatrixX &mat_k,
-            MatrixX & /*mat_alpha*/) override;
+            MatrixX &mat_alpha) override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
             const Eigen::Ref<const MatrixX> &mat_x,
             long num_samples,
+            Dtype exp_bias,
             Eigen::VectorXl &vec_grad_flags,
-            MatrixX &mat_k);
+            MatrixX &mat_k,
+            MatrixX &mat_alpha) override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
@@ -80,26 +101,39 @@ namespace erl::covariance {
             const Eigen::Ref<const VectorX> &vec_var_y,
             const Eigen::Ref<const VectorX> &vec_var_grad,
             MatrixX &mat_k,
-            MatrixX & /*mat_alpha*/) override;
+            MatrixX &mat_alpha) override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtrainWithGradient(
             const Eigen::Ref<const MatrixX> &mat_x,
             long num_samples,
+            Dtype exp_bias,
             Eigen::VectorXl &vec_grad_flags,
             const Eigen::Ref<const VectorX> &vec_var_x,
             const Eigen::Ref<const VectorX> &vec_var_y,
             const Eigen::Ref<const VectorX> &vec_var_grad,
-            MatrixX &mat_k);
+            MatrixX &mat_k,
+            MatrixX &mat_alpha) override;
 
         [[nodiscard]] std::pair<long, long>
         ComputeKtestWithGradient(
             const Eigen::Ref<const MatrixX> &mat_x1,
-            long num_samples1,
+            long num_samples,
             const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
             const Eigen::Ref<const MatrixX> &mat_x2,
-            long num_samples2,
+            long num_queries,
             bool predict_gradient,
+            MatrixX &mat_k) const override;
+
+        [[nodiscard]] std::pair<long, long>
+        ComputeKtestWithGradient(
+            const Eigen::Ref<const MatrixX> &mat_x1,
+            long num_samples,
+            const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
+            const Eigen::Ref<const MatrixX> &mat_x2,
+            long num_queries,
+            bool predict_gradient,
+            Dtype exp_bias,
             MatrixX &mat_k) const override;
     };
 

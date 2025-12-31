@@ -79,21 +79,21 @@ BindCovarianceImpl(const py::module &m, const char *name) {
             "compute_ktest",
             [](const T &self,
                const Eigen::Ref<const MatrixX> &mat_x1,
-               const long num_samples1,
+               const long num_samples,
                const Eigen::Ref<const MatrixX> &mat_x2,
-               const long num_samples2) -> MatrixX {
+               const long num_queries) -> MatrixX {
                 const long n1 = mat_x1.cols();
                 const long n2 = mat_x2.cols();
                 if (n1 == 0 || n2 == 0) { return {}; }
                 const auto [rows, cols] = self.GetMinimumKtestSize(n1, 0, 0, n2, false);
                 MatrixX k_mat(rows, cols);
-                (void) self.ComputeKtest(mat_x1, num_samples1, mat_x2, num_samples2, k_mat);
+                (void) self.ComputeKtest(mat_x1, num_samples, mat_x2, num_queries, k_mat);
                 return k_mat;
             },
             py::arg("mat_x1"),
-            py::arg("num_samples1"),
+            py::arg("num_samples"),
             py::arg("mat_x2"),
-            py::arg("num_samples2"))
+            py::arg("num_queries"))
         .def(
             "compute_ktrain_with_gradient",
             [](T &self,
@@ -171,10 +171,10 @@ BindCovarianceImpl(const py::module &m, const char *name) {
             "compute_ktest_with_gradient",
             [](const T &self,
                const Eigen::Ref<const MatrixX> &mat_x1,
-               const long num_samples1,
+               const long num_samples,
                const Eigen::Ref<const Eigen::VectorXl> &vec_grad1_flags,
                const Eigen::Ref<const MatrixX> &mat_x2,
-               const long num_samples2,
+               const long num_queries,
                const bool predict_gradient) -> MatrixX {
                 const long n1 = mat_x1.cols();
                 const long n2 = mat_x2.cols();
@@ -186,19 +186,19 @@ BindCovarianceImpl(const py::module &m, const char *name) {
                 MatrixX k_mat(rows, cols);
                 (void) self.ComputeKtestWithGradient(
                     mat_x1,
-                    num_samples1,
+                    num_samples,
                     vec_grad1_flags,
                     mat_x2,
-                    num_samples2,
+                    num_queries,
                     predict_gradient,
                     k_mat);
                 return k_mat;
             },
             py::arg("mat_x1"),
-            py::arg("num_samples1"),
+            py::arg("num_samples"),
             py::arg("vec_grad1_flags"),
             py::arg("mat_x2"),
-            py::arg("num_samples2"),
+            py::arg("num_queries"),
             py::arg("predict_gradient"));
 }
 
