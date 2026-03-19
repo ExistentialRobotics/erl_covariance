@@ -27,7 +27,8 @@ TEST(Covariance, Serialization) {
     auto [rows, cols] = matern32->GetMinimumKtrainSize(mat_x.cols(), num_samples_with_gradient, 3);
     Eigen::MatrixXd k_mat1(rows, cols);
     Eigen::MatrixXd mat_alpha;
-    (void) matern32->ComputeKtrainWithGradient(mat_x, mat_x.cols(), vec_grad_flags, k_mat1, mat_alpha);
+    (void)
+        matern32->ComputeKtrainWithGradient(mat_x, mat_x.cols(), vec_grad_flags, k_mat1, mat_alpha);
 
     {
         EXPECT_TRUE(Serialization<Matern32_3d>::Write("matern32.bin", matern32));

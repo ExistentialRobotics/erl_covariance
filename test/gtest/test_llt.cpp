@@ -24,7 +24,7 @@ TEST(LLT, Adj) {
         const erl::common::BlockTimer<std::chrono::milliseconds> timer("LLT");
         (void) timer;
         for (long i = 0; i < n; ++i) {
-            Eigen::MatrixXd& mat_l = mats_llt[i];
+            Eigen::MatrixXd &mat_l = mats_llt[i];
             mat_l = mat.llt().matrixL();
             // vecs_llt[i] = llt.solve(alpha);
             // vecs_llt[i] = mat.lu().solve(alpha);
@@ -41,7 +41,7 @@ TEST(LLT, Adj) {
         const erl::common::BlockTimer<std::chrono::milliseconds> timer("Adj");
         (void) timer;
         for (long i = 0; i < n; ++i) {
-            Eigen::MatrixXd& mat_l = mats_llt[i];
+            Eigen::MatrixXd &mat_l = mats_llt[i];
             mats_adj[i] = mat.selfadjointView<Eigen::Lower>().llt().matrixL();
             // vecs_adj[i] = llt.solve(alpha);
             Eigen::VectorXd vec = alpha;
