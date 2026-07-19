@@ -1,163 +1,122 @@
-from typing import overload
-
-import numpy as np
-import numpy.typing as npt
-from erl_common.yaml import YamlableBase
-
-__all__ = [
-    "Covariance",
-    "OrnsteinUhlenbeck_1D",
-    "OrnsteinUhlenbeck_2D",
-    "OrnsteinUhlenbeck_3D",
-    "OrnsteinUhlenbeck_xD",
-    "Matern32_1D",
-    "Matern32_2D",
-    "Matern32_3D",
-    "Matern32_xD",
-    "RadialBiasFunction_1D",
-    "RadialBiasFunction_2D",
-    "RadialBiasFunction_3D",
-    "RadialBiasFunction_xD",
-    "RationalQuadratic_1D",
-    "RationalQuadratic_2D",
-    "RationalQuadratic_3D",
-    "RationalQuadratic_xD",
-    "CustomKernelV1",
-    "CustomKernelV2",
-    "CustomKernelV3",
-    "CustomKernelV4",
-]
-
-class Covariance:
+"""
+Python 3 Interface of erl_covariance
+"""
+from __future__ import annotations
+import collections.abc
+import numpy
+import numpy.typing
+import typing
+__all__: list[str] = ['CovarianceD', 'CovarianceF', 'YamlableBase']
+class CovarianceD:
     class Setting(YamlableBase):
-        x_dim: int
-        alpha: float
-        scale: float
-        scale_mix: float
-        weights: npt.NDArray[np.float64]
-
-        def __init__(self: Covariance.Setting): ...
-
-    @staticmethod
-    def get_minimum_ktrain_size(
-        num_samples: int, num_samples_with_gradient: int, num_gradient_dimensions: int
-    ) -> tuple[int, int]: ...
-    @staticmethod
-    def get_minimum_ktest_size(
-        num_train_samples: int,
-        num_train_samples_with_gradient: int,
-        num_gradient_dimensions: int,
-        num_test_queries: int,
-    ) -> tuple[int, int]: ...
-    def __init__(self: Covariance, setting: Covariance.Setting): ...
+        def __init__(self) -> None:
+            ...
+        @property
+        def scale(self) -> float:
+            ...
+        @scale.setter
+        def scale(self, arg0: typing.SupportsFloat | typing.SupportsIndex) -> None:
+            ...
+        @property
+        def scale_mix(self) -> float:
+            ...
+        @scale_mix.setter
+        def scale_mix(self, arg0: typing.SupportsFloat | typing.SupportsIndex) -> None:
+            ...
+        @property
+        def x_dim(self) -> int:
+            ...
+        @x_dim.setter
+        def x_dim(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+            ...
+    def compute_ktest(self, mat_x1: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, mat_x2: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]", "flags.f_contiguous"], num_queries: typing.SupportsInt | typing.SupportsIndex) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]"]:
+        ...
+    def compute_ktest_with_gradient(self, mat_x1: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, vec_grad1_flags: typing.Annotated[numpy.typing.NDArray[numpy.int64], "[m, 1]"], mat_x2: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]", "flags.f_contiguous"], num_queries: typing.SupportsInt | typing.SupportsIndex, predict_gradient: bool) -> typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]"]:
+        ...
+    @typing.overload
+    def compute_ktrain(self, mat_x: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, mat_alpha: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, "[m, n]"]) -> dict:
+        ...
+    @typing.overload
+    def compute_ktrain(self, mat_x: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]", "flags.f_contiguous"], vec_var_y: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, 1]"], num_samples: typing.SupportsInt | typing.SupportsIndex, mat_alpha: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, "[m, n]"]) -> dict:
+        ...
+    @typing.overload
+    def compute_ktrain_with_gradient(self, mat_x: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, vec_grad_flags: typing.Annotated[numpy.typing.ArrayLike, numpy.int64, "[m, 1]"], mat_alpha: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, "[m, n]"]) -> dict:
+        ...
+    @typing.overload
+    def compute_ktrain_with_gradient(self, mat_x: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, vec_grad_flags: typing.Annotated[numpy.typing.ArrayLike, numpy.int64, "[m, 1]"], vec_var_x: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, 1]"], vec_var_y: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, 1]"], vec_var_grad: typing.Annotated[numpy.typing.NDArray[numpy.float64], "[m, 1]"], mat_alpha: typing.Annotated[numpy.typing.ArrayLike, numpy.float64, "[m, n]"]) -> dict:
+        ...
+    def get_minimum_ktest_size(self, num_train_samples: typing.SupportsInt | typing.SupportsIndex, num_train_samples_with_gradient: typing.SupportsInt | typing.SupportsIndex, num_gradient_dimensions: typing.SupportsInt | typing.SupportsIndex, num_test_queries: typing.SupportsInt | typing.SupportsIndex, predict_gradient: bool) -> tuple[int, int]:
+        ...
+    def get_minimum_ktrain_size(self, num_samples: typing.SupportsInt | typing.SupportsIndex, num_samples_with_gradient: typing.SupportsInt | typing.SupportsIndex, num_gradient_dimensions: typing.SupportsInt | typing.SupportsIndex) -> tuple[int, int]:
+        ...
     @property
-    def type(self: Covariance) -> str: ...
+    def setting(self) -> CovarianceD.Setting:
+        ...
     @property
-    def setting(self: Covariance) -> Setting: ...
-    @overload
-    def compute_ktrain(
-        self: Covariance, mat_x: npt.NDArray[np.float64], num_samples: int, alpha_vec: npt.NDArray[np.float64]
-    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
-    @overload
-    def compute_ktrain(
-        self: Covariance,
-        mat_x: npt.NDArray[np.float64],
-        vec_var_y: npt.NDArray[np.float64],
-        num_samples: int,
-        alpha_vec: npt.NDArray[np.float64],
-    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
-    def compute_ktest(
-        self: Covariance,
-        mat_x1: npt.NDArray[np.float64],
-        num_samples: int,
-        mat_x2: npt.NDArray[np.float64],
-        num_queries: int,
-    ) -> npt.NDArray[np.float64]: ...
-    @overload
-    def compute_ktrain_with_gradient(
-        self: Covariance,
-        mat_x: npt.NDArray[np.float64],
-        num_samples: int,
-        vec_grad_flags: npt.NDArray[np.bool_],
-        alpha_vec: npt.NDArray[np.float64],
-    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
-    @overload
-    def compute_ktrain_with_gradient(
-        self: Covariance,
-        mat_x: npt.NDArray[np.float64],
-        num_samples: int,
-        vec_grad_flags: npt.NDArray[np.bool_],
-        vec_var_x: npt.NDArray[np.float64],
-        vec_var_y: npt.NDArray[np.float64],
-        vec_var_grad: npt.NDArray[np.float64],
-        alpha_vec: npt.NDArray[np.float64],
-    ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
-    def compute_ktest_with_gradient(
-        self: Covariance,
-        mat_x1: npt.NDArray[np.float64],
-        num_samples: int,
-        vec_grad1_flags: npt.NDArray[np.bool_],
-        mat_x2: npt.NDArray[np.float64],
-        num_queries: int,
-        predict_gradient: bool,
-    ) -> npt.NDArray[np.float64]: ...
-
-class OrnsteinUhlenbeck_1D(Covariance):
-    def __init__(self: OrnsteinUhlenbeck_1D, setting: Covariance.Setting = None): ...
-
-class OrnsteinUhlenbeck_2D(Covariance):
-    def __init__(self: OrnsteinUhlenbeck_2D, setting: Covariance.Setting = None): ...
-
-class OrnsteinUhlenbeck_3D(Covariance):
-    def __init__(self: OrnsteinUhlenbeck_3D, setting: Covariance.Setting = None): ...
-
-class OrnsteinUhlenbeck_xD(Covariance):
-    def __init__(self: OrnsteinUhlenbeck_xD, setting: Covariance.Setting = None): ...
-
-class Matern32_1D(Covariance):
-    def __init__(self: Matern32_1D, setting: Covariance.Setting = None): ...
-
-class Matern32_2D(Covariance):
-    def __init__(self: Matern32_2D, setting: Covariance.Setting = None): ...
-
-class Matern32_3D(Covariance):
-    def __init__(self: Matern32_3D, setting: Covariance.Setting = None): ...
-
-class Matern32_xD(Covariance):
-    def __init__(self: Matern32_xD, setting: Covariance.Setting = None): ...
-
-class RadialBiasFunction_1D(Covariance):
-    def __init__(self: RadialBiasFunction_1D, setting: Covariance.Setting = None): ...
-
-class RadialBiasFunction_2D(Covariance):
-    def __init__(self: RadialBiasFunction_2D, setting: Covariance.Setting = None): ...
-
-class RadialBiasFunction_3D(Covariance):
-    def __init__(self: RadialBiasFunction_3D, setting: Covariance.Setting = None): ...
-
-class RadialBiasFunction_xD(Covariance):
-    def __init__(self: RadialBiasFunction_xD, setting: Covariance.Setting = None): ...
-
-class RationalQuadratic_1D(Covariance):
-    def __init__(self: RationalQuadratic_1D, setting: Covariance.Setting = None): ...
-
-class RationalQuadratic_2D(Covariance):
-    def __init__(self: RationalQuadratic_2D, setting: Covariance.Setting = None): ...
-
-class RationalQuadratic_3D(Covariance):
-    def __init__(self: RationalQuadratic_3D, setting: Covariance.Setting = None): ...
-
-class RationalQuadratic_xD(Covariance):
-    def __init__(self: RationalQuadratic_xD, setting: Covariance.Setting = None): ...
-
-class CustomKernelV1(Covariance):
-    def __init__(self: CustomKernelV1, setting: Covariance.Setting = None): ...
-
-class CustomKernelV2(Covariance):
-    def __init__(self: CustomKernelV2, setting: Covariance.Setting = None): ...
-
-class CustomKernelV3(Covariance):
-    def __init__(self: CustomKernelV3, setting: Covariance.Setting = None): ...
-
-class CustomKernelV4(Covariance):
-    def __init__(self: CustomKernelV4, setting: Covariance.Setting = None): ...
+    def type(self) -> str:
+        ...
+class CovarianceF:
+    class Setting(YamlableBase):
+        def __init__(self) -> None:
+            ...
+        @property
+        def scale(self) -> float:
+            ...
+        @scale.setter
+        def scale(self, arg0: typing.SupportsFloat | typing.SupportsIndex) -> None:
+            ...
+        @property
+        def scale_mix(self) -> float:
+            ...
+        @scale_mix.setter
+        def scale_mix(self, arg0: typing.SupportsFloat | typing.SupportsIndex) -> None:
+            ...
+        @property
+        def x_dim(self) -> int:
+            ...
+        @x_dim.setter
+        def x_dim(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+            ...
+    def compute_ktest(self, mat_x1: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, mat_x2: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]", "flags.f_contiguous"], num_queries: typing.SupportsInt | typing.SupportsIndex) -> typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]"]:
+        ...
+    def compute_ktest_with_gradient(self, mat_x1: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, vec_grad1_flags: typing.Annotated[numpy.typing.NDArray[numpy.int64], "[m, 1]"], mat_x2: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]", "flags.f_contiguous"], num_queries: typing.SupportsInt | typing.SupportsIndex, predict_gradient: bool) -> typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]"]:
+        ...
+    @typing.overload
+    def compute_ktrain(self, mat_x: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, mat_alpha: typing.Annotated[numpy.typing.ArrayLike, numpy.float32, "[m, n]"]) -> dict:
+        ...
+    @typing.overload
+    def compute_ktrain(self, mat_x: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]", "flags.f_contiguous"], vec_var_y: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, 1]"], num_samples: typing.SupportsInt | typing.SupportsIndex, mat_alpha: typing.Annotated[numpy.typing.ArrayLike, numpy.float32, "[m, n]"]) -> dict:
+        ...
+    @typing.overload
+    def compute_ktrain_with_gradient(self, mat_x: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, vec_grad_flags: typing.Annotated[numpy.typing.ArrayLike, numpy.int64, "[m, 1]"], mat_alpha: typing.Annotated[numpy.typing.ArrayLike, numpy.float32, "[m, n]"]) -> dict:
+        ...
+    @typing.overload
+    def compute_ktrain_with_gradient(self, mat_x: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, n]", "flags.f_contiguous"], num_samples: typing.SupportsInt | typing.SupportsIndex, vec_grad_flags: typing.Annotated[numpy.typing.ArrayLike, numpy.int64, "[m, 1]"], vec_var_x: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, 1]"], vec_var_y: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, 1]"], vec_var_grad: typing.Annotated[numpy.typing.NDArray[numpy.float32], "[m, 1]"], mat_alpha: typing.Annotated[numpy.typing.ArrayLike, numpy.float32, "[m, n]"]) -> dict:
+        ...
+    def get_minimum_ktest_size(self, num_train_samples: typing.SupportsInt | typing.SupportsIndex, num_train_samples_with_gradient: typing.SupportsInt | typing.SupportsIndex, num_gradient_dimensions: typing.SupportsInt | typing.SupportsIndex, num_test_queries: typing.SupportsInt | typing.SupportsIndex, predict_gradient: bool) -> tuple[int, int]:
+        ...
+    def get_minimum_ktrain_size(self, num_samples: typing.SupportsInt | typing.SupportsIndex, num_samples_with_gradient: typing.SupportsInt | typing.SupportsIndex, num_gradient_dimensions: typing.SupportsInt | typing.SupportsIndex) -> tuple[int, int]:
+        ...
+    @property
+    def setting(self) -> CovarianceF.Setting:
+        ...
+    @property
+    def type(self) -> str:
+        ...
+class YamlableBase:
+    def __str__(self) -> str:
+        ...
+    def as_yaml_file(self, yaml_file: str) -> None:
+        ...
+    def as_yaml_string(self) -> str:
+        ...
+    def from_command_line(self, args: collections.abc.Sequence[str]) -> bool:
+        ...
+    def from_yaml_file(self, yaml_file: str, base_config_field: str) -> bool:
+        ...
+    def from_yaml_string(self, yaml_str: str) -> bool:
+        ...
+    def get_safe_load(self) -> bool:
+        ...
+    def set_safe_load(self, safe_load: bool) -> None:
+        ...

@@ -507,7 +507,7 @@ namespace erl::covariance {
                 k_ij = InlineRq(a, scale_mix, r2);  // cov(f1_i, f2_j)
                 const Dtype beta = 1. / (1. + a * r2);
                 if (predict_gradient) {
-                    for (long k = 0, kj = j + num_queries; k < dim; ++k, kj += num_queries) {
+                    for (long k = 0; k < dim; ++k) {
                         // cov(f1_i, df2_j)
                         k_mat_kj_ptrs[k][i] = beta * l2_inv * k_ij * diff_ij[k];
                     }
@@ -516,8 +516,7 @@ namespace erl::covariance {
                 if (vec_grad1_flags[i] <= 0) { continue; }
                 const Dtype gamma = beta * beta * l2_inv * (1. + scale_mix) / scale_mix;
                 if (predict_gradient) {
-                    for (long k = 0, ki = ki_init, kj = j + num_queries; k < dim;
-                         ++k, ki += n_grad, kj += num_queries) {
+                    for (long k = 0, ki = ki_init; k < dim; ++k, ki += n_grad) {
                         k_mat_j_ptr[ki] = -k_mat_kj_ptrs[k][i];
 
                         // between Dim-k and Dim-k
@@ -525,8 +524,7 @@ namespace erl::covariance {
                         // k_mat(ki, kj) = cov(df1_i/dx_k, df2_j/dx_k)
                         k_mat_kj_ptrs[k][ki] = l2_inv * k_ij * (beta - gamma * dxk * dxk);
 
-                        for (long l = k + 1, li = ki + n_grad, lj = kj + num_queries; l < dim;
-                             ++l, li += n_grad, lj += num_queries) {
+                        for (long l = k + 1, li = ki + n_grad; l < dim; ++l, li += n_grad) {
                             // between Dim-k and Dim-l
                             const Dtype &dxl = diff_ij[l];
                             Dtype &k_ki_lj = k_mat_kj_ptrs[l][ki];           // k_mat(ki, lj)
