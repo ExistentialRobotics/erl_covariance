@@ -28,7 +28,7 @@
 ```bash
 cd <your_workspace>
 mkdir -p src
-vcs import --input https://raw.githubusercontent.com/ExistentialRobotics/erl_covariance/refs/head/main/erl_covariance.repos src
+vcs import --input https://raw.githubusercontent.com/ExistentialRobotics/erl_covariance/refs/heads/main/erl_covariance.repos src
 ```
 
 ### Install Dependencies
